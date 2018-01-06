@@ -1,0 +1,146 @@
+/* MENU */
+
+#index_menu {
+    padding-top: 5pt;
+    padding-bottom: 10pt;
+    margin-bottom: -20pt;
+    background-color: #555;
+}
+
+.index_menu_button {
+    background-color: #48a;
+    color: white;
+    cursor: pointer;
+    display: inline-block;
+    font-weight: bold;
+    height: 40pt;
+    line-height: 40pt;
+    margin-left: 5pt;
+    margin-top: 5pt;
+    padding: 8pt;
+    text-align: center;
+    vertical-align: middle;
+    width: 100pt;
+    font-weight: bold;
+}
+
+.index_menu_selected {
+    background-color: white !important;
+    color: #48a !important;
+}
+
+#index_sub_menu {
+    position: absolute;
+    left: 5pt;
+    right: 5pt;
+    top: 66pt;
+    background-color: #48a;
+    color: white;
+}
+
+.index_sub_menu_strap {
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    background-color: white;
+    color: #48a;
+    font-weight: bold;
+    height: 17pt;
+}
+
+/* DATE */
+
+.index_year {
+    margin-top: 20pt;
+    padding-top: 40pt;
+    padding-bottom: 5pt;
+    padding-left: 5pt;
+    background-color: #333;
+    font-size: 32pt;
+}
+
+.index_date_wrapper {
+    display: inline-block;
+}
+
+.index_date_block {
+    margin-left: 5pt;
+    margin-top: 5pt;
+    padding: 8pt;
+    font-size: 2em;
+    color: white;
+    font-weight: bold;
+    width: 50pt;
+    text-align: center;
+    height: 40pt;
+    line-height: 40pt;
+    vertical-align: middle;
+    display: inline-block;
+    cursor: pointer;
+    border-width: 2pt;
+    border-style: solid;
+}
+
+.index_date_short {
+    display: inline-block;
+    padding: 3pt;
+    margin: 3pt;
+    vertical-align: top;
+    width: 100pt;
+    overflow: hidden;
+}
+
+.index_gray {
+   color: #666;
+}
+
+.index_pending {
+    background-color: #248;
+    border-color: #248;
+}
+
+.index_todo {
+    border-color: #248;
+}
+
+.index_empty {
+    background-color: #666;
+    border-color: #666;
+    color: #999;
+}
+
+.index_normal {
+    border-color: #777;
+    color: #ddd;
+}
+
+.index_purge {
+    background-color: #843;
+    border-color: #843;
+}
+
+div.index_tag {
+    background-color: #48a;
+    color: white;
+    cursor: pointer;
+    display: inline-block;
+    font-weight: bold;
+    margin-left: 10pt;
+    margin-top: 10pt;
+    padding: 4pt;
+    text-align: center;
+    vertical-align: middle;
+}
+
+span.index_tag {
+}
+
+span.index_tag_count {
+    font-size: 14pt;
+    margin-left: -4pt;
+    margin-right: 8pt;
+    background-color: #999;
+    color: #123;
+    padding: 4pt;
+}

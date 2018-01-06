@@ -1,0 +1,98 @@
+#index_jobs.error {
+    background-color: #a84 !important;
+}
+
+#index_jobs.active {
+    background-color: white; !important;
+    color: #48a !important
+}
+
+#job_table {
+    width: 100%;
+    border-color: white;
+    padding: 0;
+    border-spacing: 0;
+    border-collapse: separate;
+}
+
+#job_table thead {
+    background-color: white;
+    border-color: white;
+}
+
+#job_table thead tr {
+    background-color: white;
+    border-color: white;
+}
+
+#job_table th {
+    padding: 3pt;
+    text-align: left;
+    color: #48a;
+    background-color: white;
+    font-weight: bold;
+}
+
+#job_table td {
+    padding-top: 1pt;
+    padding-left: 3pt;
+    padding-bottom: 1pt;
+}
+
+#job_table td.state {
+    width: 10pt;
+    text-align: center;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+#job_table td.new { }
+#job_table td.acquired { background-color: white; color: grey }
+#job_table td.active { background-color: white; color: #48a }
+#job_table td.failed { background-color: #a84; color: white }
+#job_table td.held { background-color: #288 }
+#job_table td.done { background-color: #284; }
+
+#job_table td.method {
+    width: 100pt;
+    font-weight: bold;
+}
+
+#job_table td.updated {
+    width: 160pt;
+    color: #ccc;
+    overflow-x: hidden;
+    white-space: nowrap;
+}
+
+#job_table td.time {
+    width: 40pt;
+    font-style: italic;
+}
+
+#job_table td.entry {
+    width: 40pt;
+}
+
+#job_table td.comment {
+    font-weight: bold;
+}
+
+div.job_info {
+    padding: 10pt;
+}
+
+div.job_action_buttons {
+    padding-top: 0pt;
+}
+
+div.job_action_button {
+    background-color: white;
+    color: #284;
+    padding: 8pt;
+    display: inline-block;
+    margin-top: 5pt;
+    margin-left: 0pt;
+    margin-right: 5pt;
+    cursor: pointer;
+}

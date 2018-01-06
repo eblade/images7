@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Images6/Tag</title>
+        <link rel="stylesheet" type="text/css" href="css/images.common.css"/>
+        <link rel="stylesheet" type="text/css" href="css/images.tag.css"/>
+        <link rel="stylesheet" type="text/css" href="css/images.viewer.css"/>
+        <link rel="stylesheet" type="text/css" href="css/images.autosave.css"/>
+        <script src="js/jquery-3.1.0.min.js"></script>
+        <script src="js/jquery.ba-hashchange.js"></script>
+        <script src="js/images.common.js"></script>
+        <script src="js/images.autosave.js"></script>
+        <script src="js/images.viewer.js"></script>
+        <script src="js/images.tag.js"></script>
+    </head>
+    <body>
+        <div class="viewer_header">
+            <div class="viewer_first_button_row">
+                <div id="viewer_back" class="viewer_button">back</div>
+                <div id="viewer_autopurge" class="viewer_button">autopurge</div>
+            </div>
+            <div class="viewer_second_button_row">
+                <div id="button_select_all" class="viewer_button">all</div>
+                <div id="button_select_none" class="viewer_button">none</div>
+            </div>
+            <div class="viewer_info">
+                <div id="tag_this" class="tag_this">???</div>
+                <div id="tag_details"></div>
+            </div>
+        </div>
+        <div id="viewer_selection_menu">
+        </div>
+        <div id="viewer_feed">
+        </div>
+        <div id="viewer_overlay">
+            <div id="viewer_keep" class="viewer_toggle">keep</div>
+            <div id="viewer_purge" class="viewer_toggle viewer_tight">purge</div>
+            <div id="viewer_todo" class="viewer_toggle viewer_tight">todo</div>
+            <div id="viewer_wip" class="viewer_toggle viewer_tight">wip</div>
+            <div id="viewer_final" class="viewer_toggle viewer_tight">final</div>
+            <div id="viewer_toggle_metadata" class="viewer_toggle">meta</div>
+            <div id="viewer_toggle_copies" class="viewer_toggle viewer_tight">copies</div>
+            <div id="viewer_check" class="viewer_toggle">check</div>
+            <div id="viewer_close" class="viewer_toggle">back</div>
+            <div id="viewer_metadata" class="viewer_popup">
+                <div id="viewer_metadata_content"></div>
+            </div>
+            <div id="viewer_copies" class="viewer_popup">
+                <div id="viewer_copies_content"></div>
+            </div>
+            <div id="viewer_strip" class="viewer_strip">???</div>
+        </div>
+    </body>
+</html>
+

@@ -1,0 +1,80 @@
+body {
+  background-color: #111;
+  color: #bbb;
+  font-family: monospace, "lucida console", "courier new";
+  font-size: 10pt;
+  margin-top: 0px;
+  margin-left: 0px;
+  margin-right: 0px;
+  margin-bottom: 0px;
+}
+
+a {
+  color: #ccc;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+h2 {
+    margin-left: 5pt;
+    margin-bottom: 5pt;
+}
+
+/* PROGRESS BAR */
+
+.common_progress_outer {
+    margin-top: 5pt;
+    margin-left: 5pt;
+    width: 218pt;
+    height: 30pt;
+    text-align: center;
+    vertical-align: middle;
+    background-color: #666;
+    margin-bottom: 5pt;
+}
+
+.common_progress_inner {
+   position: relative;
+   background: #48a;
+   top: 0;
+   bottom: 0;
+   left: 0;
+   height: 30pt;
+}
+
+.common_error_message {
+    color: red;
+    font-weight: bold;
+}
+
+/* COLOR CODING */
+
+.purge {
+    background-color: #843;
+    border-color: #843;
+}
+
+.keep {
+    background-color: #284;
+}
+
+.pending {
+    background-color: #248;
+    border-color: #248;
+}
+
+.todo {
+    border-color: #248;
+}
+
+.empty {
+    background-color: #666;
+    border-color: #666;
+    color: #999;
+}
+
+.normal {
+    border-color: #777;
+    color: #aaa;
+}
+

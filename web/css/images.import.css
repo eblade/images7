@@ -1,0 +1,10 @@
+div.import_action_button {
+    background-color: white;
+    color: #284;
+    padding: 8pt;
+    display: inline-block;
+    margin-top: 5pt;
+    margin-left: 0pt;
+    margin-right: 5pt;
+    cursor: pointer;
+}

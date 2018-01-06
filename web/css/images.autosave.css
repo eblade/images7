@@ -1,0 +1,8 @@
+.autosave_saving {
+    font-color: green !important;
+}
+
+.autosave_error {
+    background-color: red !important;
+    color: white !important;
+}

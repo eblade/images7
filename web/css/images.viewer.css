@@ -1,0 +1,305 @@
+.viewer_info {
+    position: absolute;
+    left: 160pt;
+    top: 5pt;
+    right: 5pt;
+}
+
+.viewer_header {
+    width: 100%;
+    margin-top: 0pt;
+    margin-left: 0pt;
+    margin-right: 0pt;
+    background-color: #333;
+}
+
+.viewer_first_button_row {
+    position: absolute;
+    top: 0pt;
+    left: 5pt;
+    margin-left: 0pt;
+    margin-right: 0pt;
+}
+
+.viewer_second_button_row {
+    position: absolute;
+    top: 0pt;
+    left: 77pt;
+    margin-left: 0pt;
+    margin-right: 0pt;
+}
+
+.viewer_button {
+    background-color: #555;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+    height: 40pt;
+    line-height: 40pt;
+    margin-left: 0pt;
+    margin-top: 5pt;
+    padding: 8pt;
+    text-align: center;
+    vertical-align: middle;
+    width: 50pt;
+}
+
+#viewer_feed {
+    position: absolute;
+    top: 190pt;
+    left: 0pt;
+    bottom: 0pt;
+    right: 0pt;
+}
+
+.viewer_toggle {
+    margin-left: 5pt;
+    margin-top: 5pt;
+    padding: 8pt;
+    background-color: rgba(150, 150, 150, .8);
+    color: white;
+    font-weight: bold;
+    width: 50pt;
+    text-align: center;
+    height: 40pt;
+    line-height: 40pt;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.viewer_popup {
+    position: absolute;
+    top: 5pt;
+    left: 72pt;
+    margin-left: 5pt;
+    margin-top: 5pt;
+    padding: 8pt;
+    background-color: #48a;
+    color: white;
+    font-weight: bold;
+    width: 800pt;
+    min-height: 400pt;
+}
+
+.viewer_tight {
+    margin-top: 0;
+}
+
+#viewer_overlay {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    padding-top: 5pt;
+    background-color: #000;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    display: none;
+}
+
+#viewer_proxy {
+    max-width: 100%;
+    max-height: 100%;
+    height: inherit !important;
+}
+
+.viewer_copy {
+    margin-right: 6pt;
+    margin-bottom: 5pt;
+    padding: 8pt;
+    color: white;
+    font-weight: bold;
+    width: 50pt;
+    text-align: center;
+    height: 40pt;
+    line-height: 40pt;
+    vertical-align: middle;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.viewer_download {
+    background-color: #284;
+}
+
+.viewer_invoke {
+    background-color: #830;
+}
+
+.viewer_next {
+    background-color: #284;
+}
+
+.viewer_none {
+    background-color: rgba(150, 150, 150, 1);
+}
+
+.toggle_selected {
+    background-color: #48a;
+}
+
+.toggle_extended {
+    width: 56pt;
+}
+
+.toggle_state_pending {
+    background-color: rgb(150, 150, 150);
+}
+
+.toggle_state_purge {
+    background-color: #f43;
+}
+
+.toggle_state_keep {
+    background-color: #444;
+}
+
+.toggle_state_todo {
+    background-color: #248;
+}
+
+.toggle_state_wip {
+    background-color: #288;
+}
+
+.toggle_state_final {
+    background-color: #284;
+}
+
+.viewer_state_label {
+    padding: 3pt;
+    margin-left: 3pt;
+}
+
+.viewer_metadata_key {
+    margin-top: 3pt;
+    margin-bottom: 2pt;
+}
+
+.viewer_metadata_value {
+    font-size: 18pt;
+    font-weight: normal;
+}
+
+.viewer_metadata_editable input {
+    width: 100%;
+    background-color: #368;
+    border: 0;
+    font-family: monospace, lucida;
+    font-size: 18pt;
+    color: white;
+}
+
+#copies {
+    width: 100%;
+}
+
+#copies th {
+    text-align: left;
+    color: #acf;
+    font-weight: bold;
+}
+
+#copies a {
+    font-weight: bold;
+    color: #acf;
+}
+
+.viewer_action_button {
+    background-color: white;
+    color: #284;
+    padding: 8pt;
+    display: inline-block;
+    margin-top: 5pt;
+    margin-left: 5pt;
+    cursor: pointer;
+}
+
+.viewer_strip {
+    position: absolute;
+    bottom: 0;
+    padding: 2pt;
+    right: 0;
+    background-color: black;
+    color: white;
+    font-family: fixed, "lucida console", "courier new";
+    font-size: 13pt;
+}
+
+img.thumb {
+    height: 150pt;
+    margin-left: 5pt;
+    margin-right: 5pt;
+    margin-top: 5pt;
+    margin-bottom: 3pt;
+    border: 4pt solid #333;
+}
+
+img.thumb_selected {
+    border-style: dashed !important;
+    border-bottom-color: white !important;
+}
+
+img.thumb_focused {
+    border-color: white !important;
+}
+
+img.state_pending {
+    border-color: #248;
+}
+
+img.state_purge {
+    border-color: #f43;
+}
+
+img.state_keep {
+    border-color: #444;
+}
+
+img.state_todo {
+    border-color: #248;
+}
+
+img.state_wip {
+    border-color: #288;
+}
+
+img.state_final {
+    border-color: #284;
+}
+
+.viewer_strip_tag {
+    color: green !important;
+}
+
+#viewer_input {
+    position: fixed;
+    left: 10pt;
+    bottom: 10pt;
+    background-color: #48a;
+}
+
+#viewer_input_heading {
+    margin: 0;
+    background-color: white;
+    color: #48a;
+    font-weight: bold;
+    height: 17pt;
+    font-size: 16pt;
+}
+
+#viewer_input_box {
+    margin: 16pt;
+    border: 0;
+    background-color: white;
+    color: #48a;
+    font-weight: bold;
+    font-size: 16pt;
+}
+
+.viewer_show {
+    cursor: pointer;
+    font-weight: bold;
+}
