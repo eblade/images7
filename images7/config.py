@@ -6,16 +6,17 @@ from urllib.parse import urlparse, parse_qsl
 from jsonobject import (
     PropertySet,
     Property,
-    Query,
     EnumProperty,
-    wrap_dict,
     register_schema,
     get_schema,
 )
 
 
 def get_path(path):
-    path = path[1:]
+    return path[1:]
+
+
+def resolve_path(path):
     if not path.startswith('/'):
         path = "$HOME/" + path
     return os.path.expanduser(os.path.expandvars(path))
@@ -30,19 +31,66 @@ class SystemConfig(PropertySet):
         inst = cls()
         inst.name = query.netloc
         for key, value in parse_qsl(query.query):
+            if key == 'mount_root': value = get_path(value)
+            setattr(inst, key, value)
+        return inst
+
+
+class DatabaseConfig(PropertySet):
+    server = Property()
+    path = Property()
+
+    @classmethod
+    def FromUrl(cls, query):
+        inst = cls()
+        inst.server = query.netloc
+        inst.path = get_path(query.path)
+        for key, value in parse_qsl(query.query):
+            setattr(inst, key, value)
+        return inst
+
+
+class HttpConfig(PropertySet):
+    server = Property()
+    interface = Property(default='localhost')
+    port = Property(int, default=8080)
+    adapter = Property(default='cheroot')
+    debug = Property(bool, default=False)
+
+    @classmethod
+    def FromUrl(cls, query):
+        print(query)
+        inst = cls()
+        inst.server = query.netloc
+        for key, value in parse_qsl(query.query):
+            setattr(inst, key, value)
+        return inst
+
+
+class ZeroMQConfig(PropertySet):
+    server = Property()
+    interface = Property(default='localhost')
+    port = Property(int, default=5555)
+
+    @classmethod
+    def FromUrl(cls, query):
+        print(query)
+        inst = cls()
+        inst.server = query.netloc
+        for key, value in parse_qsl(query.query):
             setattr(inst, key, value)
         return inst
 
 
 class ServerConfig(PropertySet):
-    name = Property()
+    hostname = Property()
     mount_root = Property()
     workers = Property(int)
 
     @classmethod
     def FromUrl(cls, query):
         inst = cls()
-        inst.name = query.netloc
+        inst.hostname = query.netloc
         for key, value in parse_qsl(query.query):
             setattr(inst, key, value)
         return inst
@@ -50,13 +98,16 @@ class ServerConfig(PropertySet):
 
 class StorageConfig(PropertySet):
     server = Property()
-    path = Property()
+    root = Property()
+    main = Property(bool)
 
     @classmethod
     def FromUrl(cls, query):
         inst = cls()
-        inst.name = query.netloc
-        inst.path = get_path(query.path)
+        inst.server = query.netloc
+        inst.root = get_path(query.path)
+        for key, value in parse_qsl(query.query):
+            setattr(inst, key, value)
         return inst
 
 
@@ -82,6 +133,7 @@ class CardConfig(PropertySet):
 
 
 class DropConfig(PropertySet):
+    name = Property()
     server = Property()
     path = Property()
     mode = Property(enum=ImportMode)
@@ -152,6 +204,9 @@ register_schema(FlickrJobSettings)
 
 class Config(PropertySet):
     system = Property(type=SystemConfig)
+    https = Property(type=HttpConfig, is_list=True)
+    zmqs = Property(type=ZeroMQConfig, is_list=True)
+    databases = Property(type=DatabaseConfig, is_list=True)
     servers = Property(type=ServerConfig, is_list=True)
     storages = Property(type=StorageConfig, is_list=True)
     cards = Property(type=CardConfig, is_list=True)
@@ -169,7 +224,10 @@ class Config(PropertySet):
                 url = urlparse(line)
                 {
                     "system": self.read_system,
+                    "http": self.read_http,
+                    "zmq": self.read_zmq,
                     "server": self.read_server,
+                    "database": self.read_database,
                     "storage": self.read_storage,
                     "card": self.read_card,
                     "drop": self.read_drop,
@@ -183,8 +241,17 @@ class Config(PropertySet):
     def read_system(self, url):
         self.system = SystemConfig.FromUrl(url)
 
+    def read_http(self, url):
+        self.https.append(HttpConfig.FromUrl(url))
+
+    def read_zmq(self, url):
+        self.zmqs.append(ZeroMQConfig.FromUrl(url))
+
     def read_server(self, url):
         self.servers.append(ServerConfig.FromUrl(url))
+
+    def read_database(self, url):
+        self.databases.append(DatabaseConfig.FromUrl(url))
 
     def read_storage(self, url):
         self.storages.append(StorageConfig.FromUrl(url))

@@ -1,5 +1,6 @@
 pillow>=2.5.1
 cherrypy
 flickrapi
+zmq
 https://github.com/eblade/jsonobject/archive/v1.0.tar.gz
 https://github.com/eblade/jsondb/archive/0.1.tar.gz

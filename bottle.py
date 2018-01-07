@@ -17,7 +17,7 @@ from __future__ import with_statement
 import sys
 
 __author__ = 'Marcel Hellkamp'
-__version__ = '0.13-dev'
+__version__ = '0.13-eblademod'
 __license__ = 'MIT'
 
 ###############################################################################
