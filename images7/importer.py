@@ -14,14 +14,8 @@ from time import sleep
 from .web import ResourceBusy
 from .system import current_system
 from .localfile import FolderScanner
-#from .entry import (
-#    Entry,
-#    State,
-#    get_entry_by_id,
-#    create_entry,
-#    update_entry_by_id,
-#)
-#from .job import Job, create_job
+from .job import Job, create_job
+from .job.register import RegisterImportOptions, RegisterPart
 
 
 re_clean = re.compile(r'[^A-Za-z0-9_\-\.]')
@@ -39,18 +33,9 @@ class App:
         app = bottle.Bottle()
 
         app.route(
-            path='/',
-            callback=get_importers_dict,
-        )
-        app.route(
             path='/trig',
             method='POST',
             callback=trig_import,
-        )
-        app.route(
-            path='/status',
-            method='GET',
-            callback=get_status,
         )
 
         return app
@@ -63,21 +48,6 @@ class App:
         t.start()
 
 
-def get_importers_dict():
-    entries = []
-    for name in sorted(current_system().import_folders.keys()):
-        entries.append({
-            'name': name,
-            'trig_url': get_trig_url(name),
-        })
-
-    return {
-        '*schema': 'ImportFeed',
-        'count': len(entries),
-        'entries': entries,
-    }
-
-
 def trig_import():
     logging.info("Start")
     current_system().zmq_req_lazy_pirate('trig_import')
@@ -85,24 +55,8 @@ def trig_import():
     return {'result': 'ok'}
 
 
-def get_status():
-    if ImportJob.files == 0:
-        progress = 100
-    else:
-        progress = int((ImportJob.imported + ImportJob.failed) / ImportJob.files * 100)
-    return {
-        '*schema': 'ImportStatus',
-        'folder_name': ImportJob.folder_name,
-        'status': ImportJob.status,
-        'files': ImportJob.files,
-        'imported': ImportJob.imported,
-        'failed': ImportJob.failed,
-        'progress': progress,
-    }
-
-
-def get_trig_url(name):
-    return '%s/trig' % (App.BASE, name)
+def get_trig_url():
+    return '/trig' % (App.BASE)
 
 
 # IMPORT MODULE HANDLING
@@ -171,14 +125,14 @@ class Importer:
             # Look for any device mounted under mount root, having a file <system>.images6
             pre_scanner = FolderScanner(current_system().server.mount_root, extensions=['images6'])
             wanted_filename = '.'.join([current_system().name, 'images6'])
-            for filepath in pre_scanner.scan():
-                filepath = os.path.join(current_system().server.mount_root, filepath)
-                logging.debug("Found file '%s'", filepath)
-                filename = os.path.basename(filepath)
+            for file_path in pre_scanner.scan():
+                file_path = os.path.join(current_system().server.mount_root, file_path)
+                logging.debug("Found file '%s'", file_path)
+                filename = os.path.basename(file_path)
                 if filename == wanted_filename:
-                    with open(filepath) as f:
+                    with open(file_path) as f:
                         name = f.readlines()[0].strip()
-                    path = os.path.dirname(filepath)
+                    path = os.path.dirname(file_path)
                     logging.info('Importing from %s (%s)', path, name)
                     self.run_scan(name, path)
 
@@ -189,96 +143,60 @@ class Importer:
         finally:
             self.status = 'idle'
 
-    def run_scan(self, name, path):
+    def run_scan(self, name, root_path):
         # Scan the root path for files matching the filter
+        system = current_system()
         tracker = next((t for t in self.trackers if t.name == name), None)
         if tracker is None:
             logging.debug("No tracker for '%s'", None)
             return
 
-        scanner = FolderScanner(path, extensions=tracker.config.extension)
+        prios = {x: n for (n, x) in enumerate(tracker.config.extension)}
+        def prio(x): return prios[os.path.splitext(x)[1][1:].lower()]
+
+        scanner = FolderScanner(root_path, extensions=tracker.config.extension)
         collected = {}
-        for filepath in scanner.scan():
-            if not tracker.is_known(filepath):
-                if not '.' in filepath: continue
-                stem, ext = os.path.splitext(filepath)
+        for file_path in scanner.scan():
+            if not tracker.is_known(file_path):
+                if not '.' in file_path: continue
+                stem, ext = os.path.splitext(file_path)
                 if stem in collected.keys():
-                    collected[stem].append(filepath)
+                    collected[stem].append(file_path)
                 else:
-                    collected[stem] = [filepath]
-                logging.debug('To import: %s', filepath)
+                    collected[stem] = [file_path]
+                #logging.debug('To import: %s', file_path)
 
         # Create entries and import jobs for each found file
-        for file_path in tracker:
-            logging.debug("Importing %s", file_path)
-            full_path = folder.get_full_path(file_path)
+        for _, file_paths in sorted(collected.items(), key=lambda x: x[0]):
+            logging.debug("Importing %s", ' + '.join(file_paths))
 
-            # Try to obtain an import module (a job that can import the file)
-            mime_type = guess_mime_type(full_path, raw=(folder.mode in ('raw', 'raw+jpg')))
-            ImportModule = get_import_module(mime_type)
+            parts = []
+            for file_path in sorted(file_paths, key=prio):
+                full_path = os.path.join(root_path, file_path)
+                mime_type, is_raw = guess_mime_type(full_path)
 
-            if ImportModule is None:
-                logging.error('Could not find an import module for %s', mime_type)
-                ImportJob.failed += 1
-                folder.add_failed(file_path)
-                continue
-
-            # Create new entry or attach to existing one
-            entry = None
-            new = None
-            if folder.derivatives:
-                # Try to see if there is an entry to match it with
-                file_name = os.path.basename(file_path)
-                m = re.search(r'^[0-9a-f]{8}', file_name)
-                if m is not None:
-                    hex_id = m.group(0)
-                    logging.debug('Converting hex %s into decimal', hex_id)
-                    entry_id = int(hex_id, 16)
-                    logging.debug('Trying to use entry %s (%d)', hex_id, entry_id)
-                    try:
-                        entry = get_entry_by_id(entry_id)
-                        new = False
-                    except KeyError:
-                        logging.warn('There was no such entry %s (%d)', hex_id, entry_id)
-
-            if entry is None:
-                logging.debug('Creating entry...')
-                entry = create_entry(Entry(
-                    original_filename=os.path.basename(file_path),
-                    state=State.new,
-                    import_folder=folder.name,
+                parts.append(RegisterPart(
+                    server=system.hostname,
+                    source=tracker.name,
+                    path=file_path,
+                    is_raw=is_raw,
                     mime_type=mime_type,
                 ))
-                logging.debug('Created entry %d.', entry.id)
-                new = True
 
-            options = ImportModule.Options(
-                entry_id=entry.id,
-                source_path=file_path,
-                mime_type=mime_type,
-                is_derivative=not new,
-                folder=folder.name,
-            )
-            job = create_job(Job(
-                method=ImportModule.method,
-                options=options,
+            system.zmq_req_payload('job_queue', Job(
+                method='register',
+                options=RegisterImportOptions(
+                    parts=parts,
+                )
             ))
 
-            ImportJob.imported += 1
-            folder.add_imported(file_path)
-            logging.info("Created job %d for %s", job.id, full_path)
 
-            ImportJob.status = 'done'
-
-
-
-def guess_mime_type(file_path, raw=False):
-    if raw:
-        mime_type = 'image/' + os.path.splitext(file_path)[1].lower().replace('.', '')
+def guess_mime_type(file_path):
+    ext = os.path.splitext(file_path)[1][1:].lower()
+    if ext in ['dng', 'raf', 'cr2']:
+        return 'image/' + ext, True
     else:
-        mime_type = mimetypes.guess_type(file_path)[0]
-    logging.debug("Guessed MIME Type '%s' for '%s'", mime_type, file_path)
-    return mime_type
+        return mimetypes.guess_type(file_path)[0], False
 
 
 class ImportTracker:

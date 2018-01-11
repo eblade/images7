@@ -45,8 +45,9 @@ if __name__ == '__main__':
     #from . import publish
     #from . import debug
 
-    #from . import job
-    #from .job import (
+    from . import job
+    from .job import (
+        register,
     #    imageproxy,
     #    jpg,
     #    raw,
@@ -56,7 +57,7 @@ if __name__ == '__main__':
     #    tag as tag_job,
     #    remote,
     #    rules,
-    #)
+    )
 
     # Config
     logging.info("*** Reading config from %s.", args.config)
@@ -79,7 +80,7 @@ if __name__ == '__main__':
             importer,
             #deleter,
             #publish,
-            #job,
+            job,
             #debug,
         ):
             logging.info(

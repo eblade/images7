@@ -7,7 +7,7 @@ import jsondb
 import socket
 import zmq
 
-from .config import resolve_path
+from .config import resolve_path, StorageType
 
 
 def current_system():
@@ -36,7 +36,7 @@ class System:
     def setup_filesystem(self):
         self.server = next((x for x in self.config.servers if x.hostname == self.hostname), None)
         assert self.server is not None, 'Missing server config for %s' % self.hostname
-        main = next((x for x in self.config.storages if x.server == self.hostname and x.main), None)
+        main = next((x for x in self.config.storages if x.server == self.hostname and x.type == StorageType.main), None)
         self.media_root = resolve_path(main.root)
         assert self.media_root is not None, 'Missing media root!'
         os.makedirs(self.media_root, exist_ok=True)
@@ -112,6 +112,59 @@ class System:
             request = server.recv()
             handler()
             server.send(request)
+
+    def zmq_req_payload(self, channel, payload, timeout=2500, retries=3):
+        endpoint = 'ipc://' + channel
+
+        logging.debug('Connecting to %s...', endpoint)
+        client = self.zmq_context.socket(zmq.REQ)
+        client.bind(endpoint)
+
+        poll = zmq.Poller()
+        poll.register(client, zmq.POLLIN)
+
+        sequence = 0
+        retries_left = retries
+        while retries_left:
+            sequence += 1
+            request = [str(sequence).encode('utf8'), payload.to_json().encode('utf8')]
+            logging.debug('Sending %i...', sequence)
+            client.send_multipart(request)
+
+            expect_reply = True
+            while expect_reply:
+                socks = dict(poll.poll(timeout))
+                if socks.get(client) == zmq.POLLIN:
+                    reply = client.recv_multipart()
+                    if not reply:
+                        break
+                    if int(reply[0]) == sequence:
+                        # Server replied OK
+                        logging.debug('Server replied %i (good)', int(reply))
+                        retries_left = 0
+                        expect_reply = False
+                    else:
+                        logging.debug('Server replied %i (bad)', int(reply))
+                        #pass # bad server reply
+
+                else:
+                    # No reponse from server, retry...
+                    logging.debug('Closing down...')
+                    client.setsockopt(zmq.LINGER, 0)
+                    client.close()
+                    poll.unregister(client)
+                    retries_left -= 1
+                    if retries_left == 0:
+                        logging.debug('Give up!')
+                        break
+                    # Reconnecting
+                    logging.debug('Reconnect...')
+                    client = context.socket(zmq.REQ)
+                    client.connect(endpoint)
+                    poll.register(client, zmq.POLLIN)
+                    client.send(request)
+
+        return reply
 
     def setup_database(self):
         db_config = next((x for x in self.config.databases if x.server == self.hostname), None)

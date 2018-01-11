@@ -96,10 +96,15 @@ class ServerConfig(PropertySet):
         return inst
 
 
+class StorageType(EnumProperty):
+    main = 'main'
+    cut = 'cut'
+
+
 class StorageConfig(PropertySet):
     server = Property()
     root = Property()
-    main = Property(bool)
+    type = Property(enum=StorageType)
 
     @classmethod
     def FromUrl(cls, query):
