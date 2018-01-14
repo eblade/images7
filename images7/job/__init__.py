@@ -16,7 +16,7 @@ from jsonobject import (
 )
 
 
-from ..multi import start_queue, spawn_worker
+from ..multi import QueueServer, QueueWorker
 from ..system import current_system
 
 from ..web import (
@@ -68,23 +68,20 @@ class App:
     @classmethod
     def run(self, workers=1):
         context = current_system().zmq_context
-        channel = 'ipc://job'
-        queue_thread = threading.Thread(
-            target=start_queue,
-            name='job_queue',
-            args=(context, channel),
-        )
-        queue_thread.daemon = True
+        queue_thread = QueueServer('ipc://job_queue', Dispatcher, workers=workers)
+        #queue_thread.daemon = True
         queue_thread.start()
 
-        for n in range(workers):
-            worker_thread = threading.Thread(
-                target=spawn_worker,
-                name='worker_%i' % n,
-                args=(context, channel),
-            )
-            worker_thread.daemon = True
-            worker_thread.start()
+
+class Dispatcher(QueueWorker):
+    def work(self, message):
+        job = Job.FromJSON(message)
+
+        try:
+            Handler = get_job_handler_for_method(job.method)
+            Handler().run(job)
+        except KeyError:
+            logging.error('Method %s is not supported', str(job.method))
 
 
 def dispatch(job):

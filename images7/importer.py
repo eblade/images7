@@ -17,6 +17,7 @@ from .localfile import FolderScanner
 from .job import Job, create_job
 from .job.register import RegisterImportOptions, RegisterPart
 
+from .multi import QueueClient
 
 re_clean = re.compile(r'[^A-Za-z0-9_\-\.]')
 
@@ -88,11 +89,6 @@ class GenericImportModule(object):
 
 class Importer:
     def __init__(self):
-        self.status = 'idle'
-        self.files = 0
-        self.imported = 0
-        self.failed = 0
-
         system = current_system()
 
         card_trackers = [ImportTracker(config, system.media_root) for config in system.config.cards]
@@ -106,42 +102,30 @@ class Importer:
 
     def trig_import(self):
         logging.info('Received trig_import')
-        if self.status == 'idle':
-            self.status = 'acquired'
-            t = Thread(target=self.run_scans, name='import_worker')
-            t.daemon = True
-            t.start()
+        t = Scanner('ipc://job_queue', 1)
+        t.trackers = self.trackers
+        t.start()
+        t.join()
 
-    def run_scans(self):
-        try:
-            logging.info('Started scanning...')
-            self.status = 'scanning'
-            self.files = 0
-            self.imported = 0
-            self.failed = 0
 
-            sources = {}
+class Scanner(QueueClient):
+    def do(self):
+        logging.info('Started scanning...')
 
-            # Look for any device mounted under mount root, having a file <system>.images6
-            pre_scanner = FolderScanner(current_system().server.mount_root, extensions=['images6'])
-            wanted_filename = '.'.join([current_system().name, 'images6'])
-            for file_path in pre_scanner.scan():
-                file_path = os.path.join(current_system().server.mount_root, file_path)
-                logging.debug("Found file '%s'", file_path)
-                filename = os.path.basename(file_path)
-                if filename == wanted_filename:
-                    with open(file_path) as f:
-                        name = f.readlines()[0].strip()
-                    path = os.path.dirname(file_path)
-                    logging.info('Importing from %s (%s)', path, name)
-                    self.run_scan(name, path)
-
-        except Exception as e:
-            logging.error('Import thread failed: %s', str(e))
-            raise e
-
-        finally:
-            self.status = 'idle'
+        # Look for any device mounted under mount root, having a file <system>.images6
+        pre_scanner = FolderScanner(current_system().server.mount_root, extensions=['images6'])
+        wanted_filename = '.'.join([current_system().name, 'images6'])
+        for file_path in pre_scanner.scan():
+            file_path = os.path.join(current_system().server.mount_root, file_path)
+            logging.debug("Found file '%s'", file_path)
+            filename = os.path.basename(file_path)
+            if filename == wanted_filename:
+                with open(file_path) as f:
+                    name = f.readlines()[0].strip()
+                path = os.path.dirname(file_path)
+                logging.info('Importing from %s (%s)', path, name)
+                for request in self.run_scan(name, path):
+                    yield request.to_json()
 
     def run_scan(self, name, root_path):
         # Scan the root path for files matching the filter
@@ -165,6 +149,7 @@ class Importer:
                 else:
                     collected[stem] = [file_path]
                 #logging.debug('To import: %s', file_path)
+                if len(collected) > 10: break
 
         # Create entries and import jobs for each found file
         for _, file_paths in sorted(collected.items(), key=lambda x: x[0]):
@@ -183,12 +168,12 @@ class Importer:
                     mime_type=mime_type,
                 ))
 
-            system.zmq_req_payload('job_queue', Job(
+            yield Job(
                 method='register',
                 options=RegisterImportOptions(
                     parts=parts,
                 )
-            ))
+            )
 
 
 def guess_mime_type(file_path):

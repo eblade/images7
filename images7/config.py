@@ -2,7 +2,7 @@
 
 import sys
 import os
-from urllib.parse import urlparse, parse_qsl
+from urllib.parse import urlparse, parse_qsl, urlunparse
 from jsonobject import (
     PropertySet,
     Property,
@@ -136,6 +136,10 @@ class CardConfig(PropertySet):
             setattr(inst, key, value)
         return inst
 
+    def get_part_url(self, part):
+        return urlunparse(('card', self.name, part.path, None, None, None))
+
+
 
 class DropConfig(PropertySet):
     name = Property()
@@ -154,6 +158,9 @@ class DropConfig(PropertySet):
             if key == 'extension': value = value.split()
             setattr(inst, key, value)
         return inst
+
+    def get_part_url(self, part):
+        return urlunparse(('local', self.server, os.path.join(self.path, part.path), None, None, None))
 
 
 class ExportConfig(PropertySet):
@@ -272,6 +279,11 @@ class Config(PropertySet):
 
     def read_job(self, url):
         self.jobs.append(JobConfig.FromUrl(url))
+
+    def get_source_by_name(self, name):
+        return next((s for s in self.cards if s.name == name), None) \
+            or next((s for s in self.drops if s.name == name), None)
+
 
 
 if __name__ == '__main__':

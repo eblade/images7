@@ -45,19 +45,33 @@ class App:
 
 class File(PropertySet):
     reference = Property()
-    url = Property()
+    revision = Property(int, name='_rev')
+    url = Property(name='_id')
 
 
 # API
 #####
 
 
+def get_file_by_url(url):
+    return File.FromDict(
+        current_system()
+            .select('file')[url])
+
+
 def get_urls_by_reference(reference):
     files = current_system() \
         .select('file') \
-        .view('by_reference', include_docs=True, key=reference)
+        .view('by_reference', include_docs=False, key=reference)
 
-    return (urlparse(file.url) for file in files)
+    return (urlparse(file['_id']) for file in files)
+
+
+def create_file(f):
+    return File.FromDict(
+        current_system()
+            .select('file')
+            .save(f.to_dict()))
 
 
 def download(id, reference, extension=None):

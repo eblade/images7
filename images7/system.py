@@ -59,6 +59,7 @@ class System:
         poll = zmq.Poller()
         poll.register(client, zmq.POLLIN)
 
+        reply = None
         sequence = 0
         retries_left = retries
         while retries_left:
@@ -95,7 +96,7 @@ class System:
                         break
                     # Reconnecting
                     logging.debug('Reconnect...')
-                    client = context.socket(zmq.REQ)
+                    client = self.zmq_context.socket(zmq.REQ)
                     client.connect(endpoint)
                     poll.register(client, zmq.POLLIN)
                     client.send(request)
@@ -130,6 +131,7 @@ class System:
             request = [str(sequence).encode('utf8'), payload.to_json().encode('utf8')]
             logging.debug('Sending %i...', sequence)
             client.send_multipart(request)
+            logging.debug('Sent %i. Waiting.', sequence)
 
             expect_reply = True
             while expect_reply:
