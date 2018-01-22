@@ -43,10 +43,22 @@ class App:
 ############
 
 
+class FileStatus(EnumProperty):
+    new = 'new'
+    managed = 'managed'
+
+
 class File(PropertySet):
     reference = Property()
     revision = Property(int, name='_rev')
     url = Property(name='_id')
+    mime_type = Property()
+    status = Property(enum=FileStatus)
+
+    @property
+    def parsed_url(self):
+        return urlparse(self.url)
+
 
 
 # API

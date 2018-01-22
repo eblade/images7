@@ -36,8 +36,9 @@ class System:
     def setup_filesystem(self):
         self.server = next((x for x in self.config.servers if x.hostname == self.hostname), None)
         assert self.server is not None, 'Missing server config for %s' % self.hostname
-        main = next((x for x in self.config.storages if x.server == self.hostname and x.type == StorageType.main), None)
-        self.media_root = resolve_path(main.root)
+        self.main_storage = next((x for x in self.config.storages if x.server == self.hostname and x.type == StorageType.main), None)
+        self.cut_storage = next((x for x in self.config.storages if x.server == self.hostname and x.type == StorageType.cut), None)
+        self.media_root = resolve_path(self.main_storage.root)
         assert self.media_root is not None, 'Missing media root!'
         os.makedirs(self.media_root, exist_ok=True)
         logging.debug("Media root path: %s", self.media_root)
@@ -176,9 +177,9 @@ class System:
         self.db = dict()
 
         def get_taken_ts(o):
-            if o.metadata is None: return None
-            if not hasattr(o.metadata, 'taken_ts'): return None
-            return o.metadata.taken_ts
+            metadata = o.get('metadata')
+            if metadata is None: return None
+            return metadata.get('taken_ts')
 
         def get_taken_ts_tuple(o):
             t = get_taken_ts(o)
@@ -191,15 +192,16 @@ class System:
             return tuple(int(x) for x in t[:10].split('-')), None
 
         def get_taken_date(o, get_value):
-            t = get_taken_ts(value)
+            t = get_taken_ts(o)
             if t is None: return None
             return t[:10], get_value()
 
         def get_source(o):
-            if o.metadata is None: return None
-            source = o.metadata.source if hasattr(o.metadata, 'source') else None
-            original_filename = o.metadata.original_filename if hasattr(o.metadata, 'original_filename') else None
-            if not all(source, original_filename): return None
+            metadata = o.get('metadata')
+            if metadata is None: return None
+            source = metadata.get('source')
+            original_filename = metadata.get('original_filename')
+            if not all([source, original_filename]): return None
             return (source, original_filename), None
 
         def sum_per(field, values):
@@ -220,6 +222,10 @@ class System:
         def each_tag_with_taken_ts(value):
             for subvalue in value.get('tags', []):
                 yield ((subvalue, get_taken_ts(value)), None)
+
+        def each_file_reference(value):
+            for file in value.get('files', []):
+                yield file.get('reference'), None
 
         entry = jsondb.Database(os.path.join(db_root, 'entry'))
         entry.define('by_taken_ts', get_taken_ts_tuple)
@@ -243,10 +249,8 @@ class System:
             each_tag,
             lambda keys, values, rereduce: len(values),
         )
-        entry.define(
-            'by_tag_and_taken_ts',
-            each_tag_with_taken_ts,
-        )
+        entry.define('by_tag_and_taken_ts', each_tag_with_taken_ts)
+        entry.define('by_file_reference', each_file_reference)
         self.db['entry'] = entry
 
         file = jsondb.Database(os.path.join(db_root, 'file'))

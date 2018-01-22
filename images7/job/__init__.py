@@ -84,67 +84,15 @@ class Dispatcher(QueueWorker):
             logging.error('Method %s is not supported', str(job.method))
 
 
-def dispatch(job):
-    try:
-        Handler = get_job_handler_for_method(job.method)
-    except KeyError:
-        logging.error('Method %s is not supported', str(job.method))
-        job.state = State.failed
-        job.message = 'Method %s is not supported' % str(job.method)
-        job.updated = time.time()
-        job.stopped = time.time()
-        current_system().db['job'].save(job.to_dict())
-        return
-
-    try:
-        config = current_system().job_config.get(job.method, dict())
-        Handler(**config).run(job)
-        job.state = State.done
-        job.updated = time.time()
-        job.stopped = time.time()
-        current_system().db['job'].save(job.to_dict())
-    except Exception as e:
-        logging.exception('Job of type %s failed with %s: %s', str(job.method), e.__class__.__name__, str(e))
-        job.state = State.failed
-        job.message = 'Job of type %s failed with %s: %s' % (str(job.method), e.__class__.__name__, str(e))
-        job.stopped = time.time()
-        job.updated = time.time()
-        current_system().db['job'].save(job.to_dict())
-
 
 # DESCRIPTOR
 ############
 
 
-class State(EnumProperty):
-    new = 'new'
-    acquired = 'acquired'
-    active = 'active'
-    done = 'done'
-    held = 'held'
-    failed = 'failed'
-
-
 class Job(PropertySet):
-    id = Property(int, name='_id')
-    revision = Property(name='_rev')
     method = Property(required=True)
-    state = Property(enum=State, default=State.new)
-    priority = Property(int, default=1000)
-    message = Property()
-    release = Property(float)
     options = Property(wrap=True)
-    created = Property(float)
-    updated = Property(float)
-    started = Property(float)
-    stopped = Property(float)
 
-    self_url = Property(calculated=True)
-
-    _patchable = ('state', )
-
-    def calculate_urls(self):
-        self.self_url = '%s/%i' % (App.BASE, self.id)
 
 
 class JobStats(PropertySet):

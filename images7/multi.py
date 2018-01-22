@@ -7,31 +7,47 @@ from collections import OrderedDict
 
 
 class QueueClient(threading.Thread):
-    def __init__(self, address, id):
-        self.id = id
+    def __init__(self, address, id=None):
+        self.id = id or uuid.uuid4().hex
         self.address = address
-        self.requests = 0
         threading.Thread.__init__(self)
 
-    def run(self):
+    def _setup(self):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.DEALER)
-        identity = 'client-%d' % self.id
+        identity = 'client-%s' % str(self.id)
         self.socket.identity = identity.encode('ascii')
         self.socket.connect(self.address)
         logging.debug("Client %s started at %s", identity, self.address)
         poll = zmq.Poller()
         poll.register(self.socket, zmq.POLLIN)
 
-        for request in self.do():
-            self.requests += 1
-            self.socket.send_string(request)
-
+    def _close(self):
         self.socket.close()
         self.context.term()
 
+    def run(self):
+        self._setup()
+
+        for request in self.do():
+            self.send(request)
+
+        self._close()
+
+    def __exit__(self, type, value, traceback):
+        self._close()
+
     def do(self):
         pass # override this!
+
+    def send(self, request):
+        if hasattr(request, 'to_json'):
+            request = request.to_json()
+        self.socket.send_string(request)
+
+    def __enter__(self):
+        self._setup()
+        return self
 
 
 class QueueServer(threading.Thread):

@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
 import bottle
+import uuid
+import logging
 
 
 from jsonobject import (
@@ -40,7 +42,7 @@ class App:
             callback=FetchByQuery(get_entries, QueryClass=EntryQuery),
         )
         app.route(
-            path='/<id:int>',
+            path='/<id>',
             callback=FetchById(get_entry_by_id),
         )
         app.route(
@@ -94,7 +96,7 @@ class State(EnumProperty):
     purge = 'purge'
 
 
-class Purpose(EnumProperty):
+class FilePurpose(EnumProperty):
     raw = 'raw'
     derivative = 'derivative'
     original = 'original'
@@ -103,7 +105,7 @@ class Purpose(EnumProperty):
     check = 'check'
 
 
-class Type(EnumProperty):
+class EntryType(EnumProperty):
     image = 'image'
     video = 'video'
     audio = 'audio'
@@ -112,16 +114,16 @@ class Type(EnumProperty):
 
 
 class FileReference(PropertySet):
-    purpose = Property(enum=Purpose)
+    purpose = Property(enum=FilePurpose)
     version = Property(int)
     reference = Property()
-    extesion = Property()
+    extension = Property()
 
 
 class Entry(PropertySet):
-    id = Property('_id')
+    id = Property(name='_id')
     revision = Property(name='_rev')
-    type = Property(enum=Type, default=Type.image)
+    type = Property(enum=EntryType, default=EntryType.image)
     state = Property(enum=State, default=State.new)
     files = Property(type=FileReference, is_list=True)
     metadata = Property(wrap=True)
@@ -151,17 +153,17 @@ class Entry(PropertySet):
                 reference.extension,
             )
             self.urls[reference.purpose.value][reference.version] = url
-            if reference.purpose is Purpose.original:
+            if reference.purpose is FilePurpose.original:
                 self.original_url = url
-            elif reference.purpose is Purpose.proxy:
+            elif reference.purpose is FilePurpose.proxy:
                 self.proxy_url = url
-            elif reference.purpose is Purpose.thumb:
+            elif reference.purpose is FilePurpose.thumb:
                 self.thumb_url = url
-            elif reference.purpose is Purpose.check:
+            elif reference.purpose is FilePurpose.check:
                 self.check_url = url
-            elif reference.purpose is Purpose.raw:
+            elif reference.purpose is FilePurpose.raw:
                 self.raw_url = url
-            elif reference.purpose is Purpose.derivative:
+            elif reference.purpose is FilePurpose.derivative:
                 self.derivative_url = url
 
 
@@ -286,6 +288,19 @@ def get_entry_by_source(folder, filename):
         return None
 
 
+def get_entries_by_reference(reference):
+    entry_data = current_system() \
+        .select('entry') \
+        .view('by_file_reference', reference, include_docs=True)
+
+    entries = [Entry.FromDict(entry.get('doc')) for entry in entry_data]
+    for entry in entries:
+        entry.calculate_urls()
+    return EntryFeed(
+        count=len(entries),
+        entries=entries,
+    )
+
 
 def update_entry_by_id(id, entry):
     entry.id = id
@@ -348,10 +363,10 @@ def patch_entry_by_id(id, patch):
 
 
 def create_entry(ed):
-    if ed.taken_ts is None:
-        ed.taken_ts = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if ed.id is None:
+        ed.id = uuid.uuid4().hex
     logging.debug('Create entry\n%s', ed.to_json())
-    return Entry.FromDict(current_system().db['entry'].save(ed.to_dict()))
+    return Entry.FromDict(current_system().select('entry').save(ed.to_dict()))
 
 
 def delete_entry_by_id(id):

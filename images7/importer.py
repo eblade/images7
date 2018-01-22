@@ -14,7 +14,7 @@ from time import sleep
 from .web import ResourceBusy
 from .system import current_system
 from .localfile import FolderScanner
-from .job import Job, create_job
+from .job import Job
 from .job.register import RegisterImportOptions, RegisterPart
 
 from .multi import QueueClient
@@ -125,7 +125,7 @@ class Scanner(QueueClient):
                 path = os.path.dirname(file_path)
                 logging.info('Importing from %s (%s)', path, name)
                 for request in self.run_scan(name, path):
-                    yield request.to_json()
+                    yield request
 
     def run_scan(self, name, root_path):
         # Scan the root path for files matching the filter
@@ -167,6 +167,9 @@ class Scanner(QueueClient):
                     is_raw=is_raw,
                     mime_type=mime_type,
                 ))
+
+                # JOB MUST INCLUDE FULL PATH AND SERVER!!!
+                # ALSO, IMPORT TRACKER IS KIND OF UNNECESSARY? LOOK AT FILE BY URL/REF
 
             yield Job(
                 method='register',
