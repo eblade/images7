@@ -91,10 +91,9 @@ class Importer:
     def __init__(self):
         system = current_system()
 
-        card_trackers = [ImportTracker(config, system.media_root) for config in system.config.cards]
-        drop_trackers = [ImportTracker(config, system.media_root) for config in system.config.drops
-                                                                  if config.server == system.hostname]
-        self.trackers = card_trackers + drop_trackers
+        cards = [config for config in system.config.cards]
+        drops = [config for config in system.config.drops if config.server == system.hostname]
+        self.sources = cards + drops
 
     def run(self):
         system = current_system()
@@ -103,7 +102,7 @@ class Importer:
     def trig_import(self):
         logging.info('Received trig_import')
         t = Scanner('ipc://job_queue', 1)
-        t.trackers = self.trackers
+        t.sources = self.sources
         t.start()
         t.join()
 
@@ -130,20 +129,21 @@ class Scanner(QueueClient):
     def run_scan(self, name, root_path):
         # Scan the root path for files matching the filter
         system = current_system()
-        tracker = next((t for t in self.trackers if t.name == name), None)
-        if tracker is None:
-            logging.debug("No tracker for '%s'", None)
+        source = next((t for t in self.sources if t.name == name), None)
+        if source is None:
+            logging.debug("No source for '%s'", None)
             return
 
-        prios = {x: n for (n, x) in enumerate(tracker.config.extension)}
+        prios = {x: n for (n, x) in enumerate(source.extension)}
         def prio(x): return prios[os.path.splitext(x)[1][1:].lower()]
 
-        scanner = FolderScanner(root_path, extensions=tracker.config.extension)
+        scanner = FolderScanner(root_path, extensions=source.extension)
         collected = {}
         for file_path in scanner.scan():
-            if not tracker.is_known(file_path):
-                if not '.' in file_path: continue
-                stem, ext = os.path.splitext(file_path)
+            if not '.' in file_path:
+                continue
+            if True:  # TODO check for file in files db here!
+                stem, _ = os.path.splitext(file_path)
                 if stem in collected.keys():
                     collected[stem].append(file_path)
                 else:
@@ -162,7 +162,8 @@ class Scanner(QueueClient):
 
                 parts.append(RegisterPart(
                     server=system.hostname,
-                    source=tracker.name,
+                    source=source.name,
+                    root_path=root_path,
                     path=file_path,
                     is_raw=is_raw,
                     mime_type=mime_type,
@@ -185,66 +186,3 @@ def guess_mime_type(file_path):
         return 'image/' + ext, True
     else:
         return mimetypes.guess_type(file_path)[0], False
-
-
-class ImportTracker:
-    def __init__(self, config, system_root):
-        self.config = config
-        self.name = str(config.name)
-
-        self.imported_file = os.path.join(
-                system_root, self.name + '_imported.index')
-
-        self.failed_file = os.path.join(
-                system_root, self.name + '_failed.index')
-
-        try:
-            with open(self.imported_file) as f:
-                self.imported = set([
-                    line.strip() for line in f.readlines() if line
-                ])
-        except IOError:
-            self.imported = set()
-        try:
-            with open(self.failed_file) as f:
-                self.failed = set([
-                    line.strip() for line in f.readlines() if line
-                ])
-        except IOError:
-            self.failed = set()
-
-        self.to_import = set()
-
-    def __repr__(self):
-        return '<ImportTracker %s>' % (self.name)
-
-    def is_imported(self, path):
-        return path in self.imported
-
-    def is_known(self, path):
-        return any((
-            path in self.imported,
-            path in self.failed,
-        ))
-
-    def add_imported(self, path):
-        self.imported.add(path)
-        with open(self.imported_file, 'a') as f:
-            f.write(path + '\n')
-
-    def add_to_import(self, path):
-        self.to_import.add(path)
-
-    def add_failed(self, path):
-        self.failed.add(path)
-        with open(self.failed_file, 'a') as f:
-            f.write(path + '\n')
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        try:
-            return self.to_import.pop()
-        except KeyError:
-            raise StopIteration

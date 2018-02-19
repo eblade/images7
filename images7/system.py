@@ -7,7 +7,7 @@ import jsondb
 import socket
 import zmq
 
-from .config import resolve_path, StorageType
+from images7.config import resolve_path, StorageType
 
 
 def current_system():
@@ -38,7 +38,7 @@ class System:
         assert self.server is not None, 'Missing server config for %s' % self.hostname
         self.main_storage = next((x for x in self.config.storages if x.server == self.hostname and x.type == StorageType.main), None)
         self.cut_storage = next((x for x in self.config.storages if x.server == self.hostname and x.type == StorageType.cut), None)
-        self.media_root = resolve_path(self.main_storage.root)
+        self.media_root = resolve_path(self.main_storage.root_path)
         assert self.media_root is not None, 'Missing media root!'
         os.makedirs(self.media_root, exist_ok=True)
         logging.debug("Media root path: %s", self.media_root)
@@ -194,7 +194,7 @@ class System:
         def get_taken_date(o, get_value):
             t = get_taken_ts(o)
             if t is None: return None
-            return t[:10], get_value()
+            return t[:10], get_value(o)
 
         def get_source(o):
             metadata = o.get('metadata')

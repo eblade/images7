@@ -48,6 +48,7 @@ if __name__ == '__main__':
     from . import job
     from .job import (
         register,
+        transfer,
     #    imageproxy,
     #    jpg,
     #    raw,
@@ -58,6 +59,7 @@ if __name__ == '__main__':
     #    remote,
     #    rules,
     )
+    from .analyse import exif
 
     # Config
     logging.info("*** Reading config from %s.", args.config)

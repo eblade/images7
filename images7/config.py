@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 import sys
 import os
@@ -103,17 +103,20 @@ class StorageType(EnumProperty):
 
 class StorageConfig(PropertySet):
     server = Property()
-    root = Property()
+    root_path = Property()
     type = Property(enum=StorageType)
 
     @classmethod
     def FromUrl(cls, query):
         inst = cls()
         inst.server = query.netloc
-        inst.root = get_path(query.path)
+        inst.root_path = get_path(query.path)
         for key, value in parse_qsl(query.query):
             setattr(inst, key, value)
         return inst
+
+    def get_file_url(self, absolute_path):
+        return urlunparse(('local', self.server, os.path.relpath(absolute_path, self.root_path), None, None, None))
 
 
 class ImportMode(EnumProperty):
@@ -283,7 +286,6 @@ class Config(PropertySet):
     def get_source_by_name(self, name):
         return next((s for s in self.cards if s.name == name), None) \
             or next((s for s in self.drops if s.name == name), None)
-
 
 
 if __name__ == '__main__':

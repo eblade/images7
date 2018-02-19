@@ -3,7 +3,7 @@
 import bottle
 import uuid
 import logging
-
+import datetime
 
 from jsonobject import (
     PropertySet,
@@ -103,6 +103,7 @@ class FilePurpose(EnumProperty):
     proxy = 'proxy'
     thumb = 'thumb'
     check = 'check'
+    unknown = 'unknown'
 
 
 class EntryType(EnumProperty):
@@ -175,6 +176,14 @@ class DefaultEntryMetadata(PropertySet):
     source = Property()
     original_filename = Property()
     taken_ts = Property()
+    orientation = Property()
+    mirror = Property()
+    angle = Property(int, default=0)
+
+    def merge(self, other):
+        for k, v in other.to_dict().items():
+            if hasattr(self, k):
+                setattr(self, k, v)
 
 register_schema(DefaultEntryMetadata)
 
@@ -384,4 +393,4 @@ def download(id, store, version, extension):
                 root=current_system().media_root
             )
 
-    raise HTTPError(404)
+    raise bottle.HTTPError(404)

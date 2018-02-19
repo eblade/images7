@@ -4,6 +4,7 @@ from jsonobject import register_schema, PropertySet, Property
 from jsondb import Conflict
 
 from . import Job, JobHandler, register_job_handler, create_job
+from .transfer import TransferJobHandler, TransferOptions
 from ..system import current_system
 from ..files import File, FileStatus, get_file_by_url, create_file
 from ..entry import Entry, FileReference, FilePurpose, EntryType, DefaultEntryMetadata, get_entries_by_reference, create_entry
@@ -14,6 +15,7 @@ from ..multi import QueueClient
 class RegisterPart(PropertySet):
     server = Property()
     source = Property()
+    root_path = Property()
     path = Property()
     is_raw = Property(bool)
     mime_type = Property()
@@ -51,9 +53,11 @@ class RegisterImportJobHandler(JobHandler):
         derivative = None
         entry = None
         source = None
+        root_path = None
 
         for part in self.options.parts:
             url = part.get_url(self.system)
+            root_path = root_path or part.root_path
             f = File(url=url, reference=url, status=FileStatus.new, mime_type=part.mime_type)
 
             try:
@@ -89,6 +93,7 @@ class RegisterImportJobHandler(JobHandler):
                     source=source,
                 ),
             )
+            entry = create_entry(entry)
             with QueueClient('ipc://job_queue') as q:
                 for f, p in ((raw, FilePurpose.raw), (original, FilePurpose.original), (derivative, FilePurpose.derivative)):
                     if f is None:
@@ -105,10 +110,9 @@ class RegisterImportJobHandler(JobHandler):
                         method='transfer',
                         options=TransferOptions(
                             entry_id=entry.id,
+                            source_root_path=root_path,
                             source_url=f.url,
                             steps=[
-                                'to_cut',
-                                'analyse',
                                 'extract_metadata',
                                 'to_main'
                             ],

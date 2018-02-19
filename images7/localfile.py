@@ -32,7 +32,7 @@ class FileCopy(object):
                     os.link(self.source, self.destination)
                 else:
                     logging.debug("Copying %s -> %s", self.source, self.destination)
-                    shutil.copyfile(self.source, self.destination)
+                    shutil.copy2(self.source, self.destination)
                 break
             except OSError as e:
                 if e.errno == errno.EXDEV:

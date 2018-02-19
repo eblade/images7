@@ -39,29 +39,29 @@ class App:
     def create(self):
         app = bottle.Bottle()
 
-        app.route(
-            path='/',
-            callback=FetchByQuery(get_jobs, QueryClass=JobQuery)
-        )
-        app.route(
-            path='/<id:int>',
-            callback=FetchById(get_job_by_id)
-        )
-        app.route(
-            path='/<id:int>',
-            method='PATCH',
-            callback=PatchById(patch_job_by_id),
-        )
+        #app.route(
+        #    path='/',
+        #    callback=FetchByQuery(get_jobs, QueryClass=JobQuery)
+        #)
+        #app.route(
+        #    path='/<id:int>',
+        #    callback=FetchById(get_job_by_id)
+        #)
+        #app.route(
+        #    path='/<id:int>',
+        #    method='PATCH',
+        #    callback=PatchById(patch_job_by_id),
+        #)
         app.route(
             path='/',
             method='POST',
             callback=Create(create_job, Job),
         )
-        app.route(
-            path='/',
-            method='DELETE',
-            callback=Delete(delete_jobs),
-        )
+        #app.route(
+        #    path='/',
+        #    method='DELETE',
+        #    callback=Delete(delete_jobs),
+        #)
 
         return app
 
@@ -77,11 +77,13 @@ class Dispatcher(QueueWorker):
     def work(self, message):
         job = Job.FromJSON(message)
 
-        try:
-            Handler = get_job_handler_for_method(job.method)
-            Handler().run(job)
-        except KeyError:
+        Handler = get_job_handler_for_method(job.method)
+
+        if Handler is None:
             logging.error('Method %s is not supported', str(job.method))
+            return
+
+        Handler().run(job)
 
 
 
@@ -117,7 +119,7 @@ class JobQuery(PropertySet):
     prev_offset = Property(int)
     offset = Property(int, default=0)
     page_size = Property(int, default=25, required=True)
-    state = Property(enum=State)
+    #state = Property(enum=State)
 
     @classmethod
     def FromRequest(self):
@@ -250,7 +252,7 @@ def register_job_handler(module):
 
 
 def get_job_handler_for_method(method):
-    return _handlers[method]
+    return _handlers.get(method)
 
 
 class JobHandler(object):
