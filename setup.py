@@ -39,6 +39,7 @@ setup(
         "flickrapi",
         "jsonobject",
         "jsondb",
+        "zmq",
     ],
     classifiers=classifiers,
 )
