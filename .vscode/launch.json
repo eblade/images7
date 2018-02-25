@@ -11,6 +11,9 @@
             "stopOnEntry": false,
             "pythonPath": "${config:python.pythonPath}",
             "module": "images7",
+            "args": [
+                "-g"
+            ],
             "cwd": "${workspaceFolder}",
             "env": {},
             "envFile": "${workspaceFolder}/.env",

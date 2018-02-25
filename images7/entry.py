@@ -4,6 +4,8 @@ import bottle
 import uuid
 import logging
 import datetime
+import json
+import mimetypes
 
 from jsonobject import (
     PropertySet,
@@ -14,9 +16,9 @@ from jsonobject import (
     get_schema,
 )
 
-from .system import current_system
-from .files import App as FileApp
-from .web import (
+from images7.system import current_system
+from images7.files import App as FileApp
+from images7.web import (
     Create,
     FetchById,
     FetchByQuery,
@@ -50,16 +52,16 @@ class App:
             method='PUT',
             callback=UpdateById(update_entry_by_id, Entry),
         )
-        app.route(
-            path='/<id:int>/metadata',
-            method='PATCH',
-            callback=PatchById(patch_entry_metadata_by_id),
-        )
-        app.route(
-            path='/<id:int>',
-            method='PATCH',
-            callback=PatchById(patch_entry_by_id),
-        )
+        #app.route(
+        #    path='/<id:int>/metadata',
+        #    method='PATCH',
+        #    callback=PatchById(patch_entry_metadata_by_id),
+        #)
+        #app.route(
+        #    path='/<id:int>',
+        #    method='PATCH',
+        #    callback=PatchById(patch_entry_by_id),
+        #)
         app.route(
             path='/',
             method='POST',
@@ -75,10 +77,10 @@ class App:
             method='PUT',
             callback=UpdateByIdAndQuery(update_entry_state, QueryClass=StateQuery),
         )
-        app.route(
-            path='/<id:int>/dl/<store>/<version:int>.<extension>',
-            callback=download,
-        )
+        #app.route(
+        #    path='/<id:int>/dl/<store>/<version:int>.<extension>',
+        #    callback=download,
+        #
 
         return app
 
@@ -118,7 +120,7 @@ class FileReference(PropertySet):
     purpose = Property(enum=FilePurpose)
     version = Property(int)
     reference = Property()
-    extension = Property()
+    mime_type = Property()
 
 
 class Entry(PropertySet):
@@ -151,7 +153,7 @@ class Entry(PropertySet):
             url = '%s/%s%s' % (
                 FileApp.BASE,
                 reference.reference,
-                reference.extension,
+                mimetypes.guess_extension(reference.mime_type),
             )
             self.urls[reference.purpose.value][reference.version] = url
             if reference.purpose is FilePurpose.original:
@@ -166,6 +168,9 @@ class Entry(PropertySet):
                 self.raw_url = url
             elif reference.purpose is FilePurpose.derivative:
                 self.derivative_url = url
+    
+    def get_file_reference(self, reference):
+        return next(filter(lambda x: x.reference == reference, self.files), None)
 
 
 class DefaultEntryMetadata(PropertySet):
@@ -279,13 +284,13 @@ def get_entries(query=None):
     )
 
 
-def get_entry_by_id(id):
+def get_entry_by_id(id) -> Entry:
     entry = Entry.FromDict(current_system().db['entry'][id])
     entry.calculate_urls()
     return entry
 
 
-def get_entry_by_source(folder, filename):
+def get_entry_by_source(folder, filename) -> Entry:
     entry_data = list(current_system().db['entry'].view(
         'by_source',
         key=(folder, filename),
@@ -311,7 +316,7 @@ def get_entries_by_reference(reference):
     )
 
 
-def update_entry_by_id(id, entry):
+def update_entry_by_id(id, entry) -> Entry:
     entry.id = id
     logging.debug('Updating entry to\n%s', entry.to_json())
     entry = Entry.FromDict(current_system().db['entry'].save(entry.to_dict()))
@@ -333,42 +338,42 @@ def update_entry_state(id, query):
     return update_entry_by_id(id, entry)
 
 
-def patch_entry_metadata_by_id(id, patch):
-    entry = get_entry_by_id(id)
-    logging.debug('Metadata Patch for %d: \n%s', id, json.dumps(patch, indent=2))
-    metadata_dict = entry.metadata.to_dict()
-    metadata_dict.update(patch)
-    metadata = wrap_dict(metadata_dict)
-    entry.metadata = metadata
-    logging.debug(entry.to_json())
-    current_system().db['entry'].save(entry.to_dict())
+#def patch_entry_metadata_by_id(id, patch):
+#    entry = get_entry_by_id(id)
+#    logging.debug('Metadata Patch for %d: \n%s', id, json.dumps(patch, indent=2))
+#    metadata_dict = entry.metadata.to_dict()
+#    metadata_dict.update(patch)
+#    metadata = wrap_dict(metadata_dict)
+#    entry.metadata = metadata
+#    logging.debug(entry.to_json())
+#    current_system().db['entry'].save(entry.to_dict())
+#
+#    if 'Angle' in patch:
+#        options = get_schema('ImageProxyOptions')()
+#        options.entry_id = id
+#        #trig_plugin('imageproxy', options)
+#
+#    return get_entry_by_id(id)
 
-    if 'Angle' in patch:
-        options = get_schema('ImageProxyOptions')()
-        options.entry_id = id
-        #trig_plugin('imageproxy', options)
 
-    return get_entry_by_id(id)
-
-
-def patch_entry_by_id(id, patch):
-    logging.debug('Patch for %d: \n%s', id, json.dumps(patch, indent=2))
-    entry = get_entry_by_id(id)
-
-    for key, value in patch.items():
-        if key in Entry._patchable:
-            setattr(entry, key, value)
-        elif key == 'variants':
-            purpose = value['purpose']
-            version = value['version']
-            variant = entry.get_variant(purpose, version=version)
-            for key, value in value.items():
-                if key in Variant._patchable:
-                    setattr(variant, key, value)
-
-    logging.debug(entry.to_json())
-    current_system().db['entry'].save(entry.to_dict())
-    return get_entry_by_id(id)
+#def patch_entry_by_id(id, patch):
+#    logging.debug('Patch for %d: \n%s', id, json.dumps(patch, indent=2))
+#    entry = get_entry_by_id(id)
+#
+#    for key, value in patch.items():
+#        if key in Entry._patchable:
+#            setattr(entry, key, value)
+#        elif key == 'variants':
+#            purpose = value['purpose']
+#            version = value['version']
+#            variant = entry.get_variant(purpose, version=version)
+#            for key, value in value.items():
+#                if key in Variant._patchable:
+#                    setattr(variant, key, value)
+#
+#    logging.debug(entry.to_json())
+#    current_system().db['entry'].save(entry.to_dict())
+#    return get_entry_by_id(id)
 
 
 def create_entry(ed):
@@ -382,15 +387,15 @@ def delete_entry_by_id(id):
     current_system().db['entry'].delete(id)
 
 
-def download(id, store, version, extension):
-    download = bottle.request.query.download == 'yes'
-    entry = get_entry_by_id(id)
-    for variant in entry.variants:
-        if variant.store == store and variant.version == version and variant.get_extension() == '.' + extension:
-            return bottle.static_file(
-                variant.get_filename(id),
-                download=download,
-                root=current_system().media_root
-            )
-
-    raise bottle.HTTPError(404)
+#def download(id, store, version, extension):
+#    download = bottle.request.query.download == 'yes'
+#    entry = get_entry_by_id(id)
+#    for variant in entry.variants:
+#        if variant.store == store and variant.version == version and variant.get_extension() == '.' + extension:
+#            return bottle.static_file(
+#                variant.get_filename(id),
+#                download=download,
+#                root=current_system().media_root
+#            )
+#
+#    raise bottle.HTTPError(404)

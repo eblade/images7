@@ -13,8 +13,8 @@ from jsonobject import (
     get_schema,
 )
 
-from .system import current_system
-from .config import resolve_path
+from images7.system import current_system
+from images7.config import resolve_path
 
 
 # WEB
@@ -27,14 +27,14 @@ class App:
     def create(self):
         app = bottle.Bottle()
 
-        app.route(
-            path='/<reference>.<extension>',
-            callback=download,
-        )
-        app.route(
-            path='/<reference>',
-            callback=download,
-        )
+        #app.route(
+        #    path='/<reference>.<extension>',
+        #    callback=download,
+        #)
+        #app.route(
+        #    path='/<reference>',
+        #    callback=download,
+        #)
 
         return app
 
@@ -86,15 +86,15 @@ def create_file(f):
             .save(f.to_dict()))
 
 
-def download(id, reference, extension=None):
-    system = current_system()
-    as_download = bottle.request.query.download == 'yes'
-    for url in get_urls_by_reference(reference):
-        if scheme == 'local' and url.netloc == system.hostname:
-            return bottle.static_file(
-                resolve_path(url.path),
-                download=as_download,
-                root=current_system().media_root
-            )
-
-    raise HTTPError(404)
+#def download(id, reference, extension=None):
+#    system = current_system()
+#    as_download = bottle.request.query.download == 'yes'
+#    for url in get_urls_by_reference(reference):
+#        if scheme == 'local' and url.netloc == system.hostname:
+#            return bottle.static_file(
+#                resolve_path(url.path),
+#                download=as_download,
+#                root=current_system().media_root
+#            )
+#
+#    raise HTTPError(404)

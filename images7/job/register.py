@@ -3,13 +3,16 @@ import logging
 from jsonobject import register_schema, PropertySet, Property
 from jsondb import Conflict
 
-from . import Job, JobHandler, register_job_handler, create_job
-from .transfer import TransferJobHandler, TransferOptions
-from ..system import current_system
-from ..files import File, FileStatus, get_file_by_url, create_file
-from ..entry import Entry, FileReference, FilePurpose, EntryType, DefaultEntryMetadata, get_entries_by_reference, create_entry
-from ..job import Job, create_job
-from ..multi import QueueClient
+from images7.job import Job, JobHandler, Step, StepStatus, register_job_handler
+from images7.job.to_cut import ToCut
+from images7.job.calculate_hash import CalculateHash
+from images7.job.read_metadata import ReadMetadata
+from images7.job.to_main import ToMain
+from images7.job.create_proxy import CreateProxy
+from images7.system import current_system
+from images7.files import File, FileStatus, get_file_by_url, create_file
+from images7.entry import Entry, FileReference, FilePurpose, EntryType, DefaultEntryMetadata, get_entries_by_reference, create_entry, update_entry_by_id
+from images7.multi import QueueClient
 
 
 class RegisterPart(PropertySet):
@@ -33,19 +36,22 @@ class RegisterImportOptions(PropertySet):
 register_schema(RegisterImportOptions)
 
 
-class RegisterImportJobHandler(JobHandler):
+class Register(JobHandler):
     Options = RegisterImportOptions
     method = 'register'
 
     def run(self, job):
         logging.info('Starting register import.')
         assert job is not None, "Job can't be None"
-        assert job.options is not None, "Job Options can't be None"
         logging.info('Job\n%s', job.to_json())
+        self.step = job.get_current_step()
         self.system = current_system()
-        self.options = job.options
+        self.options = self.step.options
 
         self.register_parts()
+
+        self.step.status = StepStatus.done
+        return self.step
 
     def register_parts(self):
         raw = None
@@ -68,7 +74,7 @@ class RegisterImportJobHandler(JobHandler):
                     entry = next(iter(get_entries_by_reference(f.reference).entries), None)
 
             if f is None:
-                logging.error('Bad file:', f.to_json())
+                logging.error('Bad file: %s', f.to_json())
 
             if part.is_raw:
                 raw = f
@@ -82,7 +88,7 @@ class RegisterImportJobHandler(JobHandler):
         primary = raw or original or derivative
         
         if primary is None:
-            logging.error('No valid file!', self.job.to_json())
+            logging.error('No valid file!\n%s', self.step.to_json())
             return
 
         if entry is None:
@@ -94,32 +100,45 @@ class RegisterImportJobHandler(JobHandler):
                 ),
             )
             entry = create_entry(entry)
-            with QueueClient('ipc://job_queue') as q:
-                for f, p in ((raw, FilePurpose.raw), (original, FilePurpose.original), (derivative, FilePurpose.derivative)):
-                    if f is None:
-                        continue
+            jobs = []
+            for f, p in ((raw, FilePurpose.raw), (original, FilePurpose.original), (derivative, FilePurpose.derivative)):
+                if f is None:
+                    continue
 
-                    entry.files.append(FileReference(
-                        reference=f.reference,
-                        purpose=p,
-                        version=0,
-                        extension=os.path.splitext(os.path.basename(f.url))[1],
-                    ))
+                entry.files.append(FileReference(
+                    reference=f.reference,
+                    purpose=p,
+                    version=0,
+                    mime_type=f.mime_type,
+                ))
 
-                    q.send(Job(
-                        method='transfer',
-                        options=TransferOptions(
-                            entry_id=entry.id,
+                jobs.append(Job(
+                    steps=[
+                        ToCut.AsStep(
                             source_root_path=root_path,
                             source_url=f.url,
-                            steps=[
-                                'extract_metadata',
-                                'to_main'
-                            ],
-                        )
-                    ))
+                        ),
+                        CalculateHash.AsStep(),
+                        ReadMetadata.AsStep(
+                            entry_id=entry.id,
+                            mime_type=f.mime_type,
+                        ),
+                        ToMain.AsStep(
+                            entry_id=entry.id,
+                            source_url=f.url,
+                        ),
+                        CreateProxy.AsStep(
+                            entry_id=entry.id,
+                            source_url=f.url,
+                        ),
+                    ]
+                ))
 
-            entry = create_entry(entry)
+            update_entry_by_id(entry.id, entry)
+
+            with QueueClient('ipc://job_queue') as q:
+                for job in jobs:
+                    q.send(job)
 
 
-register_job_handler(RegisterImportJobHandler)
+register_job_handler(Register)

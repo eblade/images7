@@ -7,16 +7,16 @@ import jsondb
 import socket
 import zmq
 
-from images7.config import resolve_path, StorageType
+from images7.config import Config, resolve_path, StorageType
 
 
-def current_system():
+def current_system() -> 'System':
     return current_system.system
 current_system.system = None
 
 
 class System:
-    def __init__(self, config):
+    def __init__(self, config: Config):
         self.config = config
         self.hostname = socket.getfqdn()
         self.name = config.system.name

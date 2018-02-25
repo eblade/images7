@@ -15,17 +15,8 @@ from jsonobject import (
     register_schema,
 )
 
-
-from ..multi import QueueServer, QueueWorker
-from ..system import current_system
-
-from ..web import (
-    Create,
-    FetchById,
-    FetchByQuery,
-    PatchById,
-    Delete,
-)
+from images7.multi import QueueServer, QueueWorker, QueueClient
+from images7.system import current_system
 
 
 # WEB
@@ -39,200 +30,80 @@ class App:
     def create(self):
         app = bottle.Bottle()
 
-        #app.route(
-        #    path='/',
-        #    callback=FetchByQuery(get_jobs, QueryClass=JobQuery)
-        #)
-        #app.route(
-        #    path='/<id:int>',
-        #    callback=FetchById(get_job_by_id)
-        #)
-        #app.route(
-        #    path='/<id:int>',
-        #    method='PATCH',
-        #    callback=PatchById(patch_job_by_id),
-        #)
-        app.route(
-            path='/',
-            method='POST',
-            callback=Create(create_job, Job),
-        )
-        #app.route(
-        #    path='/',
-        #    method='DELETE',
-        #    callback=Delete(delete_jobs),
-        #)
-
         return app
 
     @classmethod
     def run(self, workers=1):
-        context = current_system().zmq_context
         queue_thread = QueueServer('ipc://job_queue', Dispatcher, workers=workers)
-        #queue_thread.daemon = True
         queue_thread.start()
 
 
 class Dispatcher(QueueWorker):
     def work(self, message):
         job = Job.FromJSON(message)
+        job.status = JobStatus.running
 
-        Handler = get_job_handler_for_method(job.method)
+        while job.status == JobStatus.running:
+            step = job.get_current_step()
 
-        if Handler is None:
-            logging.error('Method %s is not supported', str(job.method))
-            return
+            Handler = get_job_handler_for_method(step.method)
 
-        Handler().run(job)
+            if Handler is None:
+                logging.error('Method %s is not supported', str(step.method))
+                return
 
+            Handler().run(job)
+            job.get_on_with_it()
 
 
 # DESCRIPTOR
 ############
 
 
-class Job(PropertySet):
+class StepStatus(EnumProperty):
+    new = "new"
+    done = "done"
+    running = "running"
+    failed = "failed"
+
+
+class Step(PropertySet):
+    name = Property()
     method = Property(required=True)
     options = Property(wrap=True)
+    result = Property(wrap=True)
+    status = Property(enum=StepStatus, default=StepStatus.new)
 
 
-
-class JobStats(PropertySet):
-    new = Property(int, none=0)
-    acquired = Property(int, none=0)
-    active = Property(int, none=0)
-    done = Property(int, none=0)
-    held = Property(int, none=0)
-    failed = Property(int, none=0)
-    total = Property(int, none=0)
+class JobStatus(EnumProperty):
+    new = "new"
+    done = "done"
+    running = "running"
+    failed = "failed"
 
 
-class JobFeed(PropertySet):
-    count = Property(int)
-    total_count = Property(int)
-    offset = Property(int)
-    stats = Property(JobStats)
-    entries = Property(Job, is_list=True)
+class Job(PropertySet):
+    current_step = Property(type=int, default=0)
+    steps = Property(type=Step, is_list=True)
+    status = Property(enum=JobStatus, default=JobStatus.new)
 
-
-class JobQuery(PropertySet):
-    prev_offset = Property(int)
-    offset = Property(int, default=0)
-    page_size = Property(int, default=25, required=True)
-    #state = Property(enum=State)
-
-    @classmethod
-    def FromRequest(self):
-        eq = JobQuery()
-
-        if bottle.request.query.prev_offset not in (None, ''):
-            eq.prev_offset = bottle.request.query.prev_offset
-        if bottle.request.query.offset not in (None, ''):
-            eq.offset = bottle.request.query.offset
-        if bottle.request.query.page_size not in (None, ''):
-            eq.page_size = bottle.request.query.page_size
-        if bottle.request.query.state not in (None, ''):
-            eq.state = getattr(State, bottle.request.query.state)
-
-        return eq
-
-    def to_query_string(self):
-        return urllib.parse.urlencode(
-            (
-                ('prev_offset', self.prev_offset or ''),
-                ('offset', self.offset),
-                ('page_size', self.page_size),
-                ('state', self.state.value if self.state is not None else ''),
-            )
-        )
-
-
-# API
-#####
-
-
-def get_jobs(query):
-    if query is None:
-        offset = 0
-        page_size = 25
-        state = None
-
-    else:
-        offset = query.offset
-        page_size = query.page_size
-        state = None if query.state is None else query.state.value
-
-    if state is None:
-        data = current_system().db['job'].view(
-            'by_updated',
-            startkey=None,
-            endkey=any,
-            include_docs=True,
-        )
-    else:
-        data = current_system().db['job'].view(
-            'by_state',
-            startkey=(state, None, None),
-            endkey=(state, any, any),
-            include_docs=True,
-        )
-
-    stats = list(current_system().db['job'].view('stats', group=True))
-    stats = JobStats.FromDict(stats[0]['value']) if len(stats) else JobStats()
-
-    entries = []
-    for i, d in enumerate(data):
-        if i < offset:
-            continue
-        elif i >= offset + page_size:
-            break
-        entries.append(Job.FromDict(d['doc']))
-
-    return JobFeed(
-        offset=offset,
-        count=len(entries),
-        total_count=stats.total,
-        page_size=page_size,
-        stats=stats,
-        entries=entries,
-    )
-
-
-def get_job_by_id(id):
-    job = Job.FromDict(current_system().db['job'][id])
-    job.calculate_urls()
-    return job
-
-
-def create_job(job):
-    if job.method is None:
-        raise bottle.HTTPError(400, 'Missing parameter "method".')
-    job.state = State.new
-    job.created = time.time()
-    job.updated = time.time()
-    job._id = None
-    job._rev = None
-    job = Job.FromDict(current_system().db['job'].save(job.to_dict()))
-    logging.debug('Created job\n%s', job.to_json())
-    return job
-
-
-def patch_job_by_id(id, patch):
-    logging.debug('Patch job %d: \n%s', id, json.dumps(patch, indent=2))
-    job = get_job_by_id(id)
-    for key, value in patch.items():
-        if key in Job._patchable:
-            setattr(job, key, value)
-
-    job.updated = time.time()
-    job = Job.FromDict(current_system().db['entry'].save(entry.to_dict()))
-    return job
-
-
-def delete_jobs():
-    logging.debug("Delete jobs.")
-    current_system().db['job'].clear()
-
+    def get_current_step(self) -> Step:
+        return self.steps[self.current_step]
+    
+    def get_on_with_it(self):
+        step = self.get_current_step()
+        if step.status != StepStatus.done:
+            self.status = JobStatus.failed
+            step.status = StepStatus.failed
+        else:
+            self.current_step += 1
+            if self.current_step < len(self.steps):
+                self.status = JobStatus.running
+            else:
+                self.status = JobStatus.done
+    
+    def get_step(self, method) -> Step:
+        return next(filter(lambda x: x.method == method, self.steps), None)
 
 
 # JOB HANDLING
@@ -256,12 +127,19 @@ def get_job_handler_for_method(method):
 
 
 class JobHandler(object):
+    method = None
+    Options = lambda: None
+
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key.replace(' ', '_'), value)
 
     def run(self, *args, **kwargs):
-        raise NotImplemented
+        raise NotImplementedError
+
+    @classmethod
+    def AsStep(cls, **kwargs):
+        return Step(method=cls.method, options=cls.Options(**kwargs))
 
 
 class DummyOptions(PropertySet):

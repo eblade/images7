@@ -6,6 +6,7 @@ import errno
 import logging
 import shutil
 import re
+import hashlib
 
 
 class FileCopy(object):
@@ -66,6 +67,19 @@ class FolderScanner(object):
                     path = os.path.relpath(os.path.join(relative_path, f), self.basepath)
                     if not path.startswith('.'):
                         yield path
+
+
+
+def calculate_hash(path):
+    BLOCKSIZE = 65636
+    sha = hashlib.sha256()
+    with open(path, 'rb') as f:
+        buf = f.read(BLOCKSIZE)
+        while len(buf) > 0:
+            sha.update(buf)
+            buf = f.read(BLOCKSIZE)
+
+    return sha.hexdigest()
 
 
 mangled = re.compile(r'[^A-Za-z0-9-_]')

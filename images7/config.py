@@ -228,6 +228,7 @@ class Config(PropertySet):
     drops = Property(type=DropConfig, is_list=True)
     exports = Property(type=ExportConfig, is_list=True)
     jobs = Property(type=JobConfig, is_list=True)
+    import_settings = Property(type=ImportJobSettings)
 
     def __init__(self, filename):
         self.filename = filename
@@ -286,6 +287,9 @@ class Config(PropertySet):
     def get_source_by_name(self, name):
         return next((s for s in self.cards if s.name == name), None) \
             or next((s for s in self.drops if s.name == name), None)
+    
+    def get_job_settings(self, name):
+        return next((s.settings for s in self.jobs), None)
 
 
 if __name__ == '__main__':

@@ -3,19 +3,19 @@
 import os
 import logging
 import uuid
-import hashlib
 import datetime
 
 from jsonobject import PropertySet, Property, register_schema
 
 from images7.system import current_system
 from images7.config import resolve_path
-from images7.job import JobHandler, Job, create_job, register_job_handler
-#from ..job.imageproxy import ImageProxyOptions, ImageProxyJobHandler
-from images7.localfile import FileCopy, mangle
+from images7.job import JobHandler, Job, register_job_handler
+from images7.job.transcode import get_transcoder
+from images7.localfile import FileCopy, mangle, calculate_hash
 from images7.files import get_file_by_url, create_file, File, FileStatus
 from images7.analyse import get_analyser
 from images7.entry import get_entry_by_id, update_entry_by_id, FilePurpose, FileReference
+from images7.retry import retry, GiveUp
 
 
 class TransferOptions(PropertySet):
@@ -44,42 +44,53 @@ class TransferJobHandler(JobHandler):
 
         self.cut_path = None
         self.reference = None
-        self.metadata = None
 
         router = {
             'extract_hash': self.extract_hash,
             'extract_metadata': self.extract_metadata,
             'to_main': self.to_main,
+            'create_proxy': self.create_proxy,
         }
         for step in self.options.steps:
-            router[step]()
+            if step not in router:
+                logging.error('No such step: %s', step)
+                break
+            try:
+                router[step]()
+            except GiveUp:
+                logging.error('Gave up during step: %s', step)
+                break
 
     def extract_hash(self):
         if self.reference is not None:
             return
 
         self.to_cut()
-
-        BLOCKSIZE = 65636
-        sha = hashlib.sha256()
-        with open(self.cut_path, 'rb') as f:
-            buf = f.read(BLOCKSIZE)
-            while len(buf) > 0:
-                sha.update(buf)
-                buf = f.read(BLOCKSIZE)
-
-        self.reference = sha.hexdigest()
+        self.reference = calculate_hash(self.cut_path)
 
     def extract_metadata(self):
         self.to_cut()
         
-        # TODO What's wrong with getting the analyser???
         analyse = get_analyser(self.source.mime_type)
 
         if analyse is None:
             return
 
-        self.metadata = analyse(self.cut_path)
+        metadata = analyse(self.cut_path)
+        if metadata is None:
+            return
+        
+        @retry()
+        def push():
+            entry = get_entry_by_id(self.options.entry_id)
+            if entry.metadata is None:
+                entry.metadata = metadata
+            else:
+                entry.metadata.merge(metadata)
+            update_entry_by_id(entry.id, entry)
+        
+        push()
+
 
     def to_main(self):
         self.to_cut()
@@ -91,22 +102,14 @@ class TransferJobHandler(JobHandler):
         file_ref = next((fr for fr in entry.files if fr.reference == self.source.reference), None)
         purpose = file_ref.purpose if file_ref is not None else FilePurpose.unknown
 
-        metadata = None
-        if self.metadata is not None:
-            metadata = self.metadata
-        else:
-            metadata = entry.metadata
-
-        if metadata is not None and hasattr(metadata, 'taken_ts') and metadata.taken_ts is not None:
-            taken_ts = metadata.taken_ts[:10]
+        if entry.metadata is not None and hasattr(entry.metadata, 'taken_ts') and entry.metadata.taken_ts is not None:
+            taken_ts = entry.metadata.taken_ts[:10]
         else:
             taken_ts = datetime.datetime.fromtimestamp(os.path.getmtime(self.cut_path)).strftime('%Y-%m-%d')
 
-        entry.metadata.merge(metadata)
         main_root = resolve_path(self.system.main_storage.root_path)
         filename = os.path.basename(self.options.source_url)
         parts = [main_root, entry.type.value, purpose.value, taken_ts, filename]
-        print(parts)
         main_path = os.path.join(*parts)
 
         logging.info("Source: %s", str(source_url))
@@ -120,25 +123,27 @@ class TransferJobHandler(JobHandler):
         )
         filecopy.run()
 
-        new_file_ref = FileReference(
-            purpose=file_ref.purpose,
-            version=file_ref.version,
-            reference=self.reference,
-            extension=file_ref.extension,
-        )
-        new_file = File(
-            reference=self.reference,
-            url=self.system.main_storage.get_file_url(main_path),
-            mime_type=self.source.mime_type,
-            status=FileStatus.managed,
-        )
-        create_file(new_file)
+        @retry()
+        def push():
+            entry = get_entry_by_id(self.options.entry_id)
+            new_file_ref = FileReference(
+                purpose=file_ref.purpose,
+                version=file_ref.version,
+                reference=self.reference,
+                mime_type=file_ref.mime_type,
+            )
+            new_file = File(
+                reference=self.reference,
+                url=self.system.main_storage.get_file_url(main_path),
+                mime_type=self.source.mime_type,
+                status=FileStatus.managed,
+            )
+            create_file(new_file)
 
-        entry.files.append(new_file_ref)
-        update_entry_by_id(entry.id, entry)
+            entry.files.append(new_file_ref)
+            update_entry_by_id(entry.id, entry)
 
-
-
+        push()
 
 
     def to_cut(self):
@@ -167,6 +172,32 @@ class TransferJobHandler(JobHandler):
         filecopy.run()
 
         self.cut_path = cut_path
+    
+
+    def create_proxy(self):
+        self.to_cut() # Main har tagit bort den...
+        entry = get_entry_by_id(self.options.entry_id)
+
+        transcoder = get_transcoder(entry.type.value + '-proxy')
+
+        targets = [
+            transcoder.Options(entry=entry, cut_source=self.cut_path, purpose=FilePurpose.proxy),
+            transcoder.Options(entry=entry, cut_source=self.cut_path, purpose=FilePurpose.thumb),
+            transcoder.Options(entry=entry, cut_source=self.cut_path, purpose=FilePurpose.check), # clean_up=True
+        ]
+
+        filerefs = []
+        for target in targets:
+            f = transcoder.run(target)
+            filerefs.append(FileReference(
+                purpose=target.purpose,
+                version=self.source.version,
+                reference=f.reference,
+                mime_type=f.mime_type,
+            ))
+        
+        logging.info(filerefs)
+        # Sen kanske bra att spara dem...
 
 
 register_job_handler(TransferJobHandler)

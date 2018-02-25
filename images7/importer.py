@@ -11,13 +11,13 @@ from jsonobject import wrap_raw_json
 from threading import Thread, Event, Lock
 from time import sleep
 
-from .web import ResourceBusy
-from .system import current_system
-from .localfile import FolderScanner
-from .job import Job
-from .job.register import RegisterImportOptions, RegisterPart
+from images7.web import ResourceBusy
+from images7.system import current_system
+from images7.localfile import FolderScanner
+from images7.job import Job, Step
+from images7.job.register import Register, RegisterPart
 
-from .multi import QueueClient
+from images7.multi import QueueClient
 
 re_clean = re.compile(r'[^A-Za-z0-9_\-\.]')
 
@@ -169,14 +169,12 @@ class Scanner(QueueClient):
                     mime_type=mime_type,
                 ))
 
-                # JOB MUST INCLUDE FULL PATH AND SERVER!!!
-                # ALSO, IMPORT TRACKER IS KIND OF UNNECESSARY? LOOK AT FILE BY URL/REF
-
             yield Job(
-                method='register',
-                options=RegisterImportOptions(
-                    parts=parts,
-                )
+                steps=[
+                    Register.AsStep(
+                        parts=parts,
+                    )
+                ]
             )
 
 
