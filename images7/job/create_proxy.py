@@ -86,8 +86,8 @@ class CreateProxy(JobHandler):
                     reference=file_ref.reference,
                     mime_type=file_ref.mime_type,
                 )
+                entry.files.append(new_file_ref)
 
-            entry.files.append(new_file_ref)
             update_entry_by_id(entry.id, entry)
 
         push()

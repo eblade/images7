@@ -54,6 +54,7 @@ if __name__ == '__main__':
         read_metadata,
         to_main,
         create_proxy,
+        clean_cut,
     )
     from .analyse import exif
     from .job.transcode import imageproxy

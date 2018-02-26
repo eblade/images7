@@ -88,7 +88,7 @@ class ToMain(JobHandler):
             source=source_path,
             destination=main_path,
             link=True,
-            remove_source=True,
+            remove_source=False,
         )
         filecopy.run()
 

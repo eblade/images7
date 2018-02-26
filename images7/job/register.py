@@ -9,6 +9,7 @@ from images7.job.calculate_hash import CalculateHash
 from images7.job.read_metadata import ReadMetadata
 from images7.job.to_main import ToMain
 from images7.job.create_proxy import CreateProxy
+from images7.job.clean_cut import CleanCut
 from images7.system import current_system
 from images7.files import File, FileStatus, get_file_by_url, create_file
 from images7.entry import Entry, FileReference, FilePurpose, EntryType, DefaultEntryMetadata, get_entries_by_reference, create_entry, update_entry_by_id
@@ -131,6 +132,7 @@ class Register(JobHandler):
                             entry_id=entry.id,
                             source_url=f.url,
                         ),
+                        CleanCut.AsStep(),
                     ]
                 ))
 

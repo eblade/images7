@@ -142,14 +142,18 @@ class Scanner(QueueClient):
         for file_path in scanner.scan():
             if not '.' in file_path:
                 continue
-            if True:  # TODO check for file in files db here!
-                stem, _ = os.path.splitext(file_path)
-                if stem in collected.keys():
-                    collected[stem].append(file_path)
-                else:
-                    collected[stem] = [file_path]
-                #logging.debug('To import: %s', file_path)
-                if len(collected) > 10: break
+            
+            url = source.get_path_url(file_path)
+            if system.select('file').has(url):
+                continue
+
+            stem, _ = os.path.splitext(file_path)
+            if stem in collected.keys():
+                collected[stem].append(file_path)
+            else:
+                collected[stem] = [file_path]
+
+            #if len(collected) > 10: break
 
         # Create entries and import jobs for each found file
         for _, file_paths in sorted(collected.items(), key=lambda x: x[0]):

@@ -140,7 +140,10 @@ class CardConfig(PropertySet):
         return inst
 
     def get_part_url(self, part):
-        return urlunparse(('card', self.name, part.path, None, None, None))
+        return self.get_path_url(part.path)
+
+    def get_path_url(self, path):
+        return urlunparse(('card', self.name, path, None, None, None))
 
 
 

@@ -69,7 +69,7 @@ class ImageTranscoder(Transcoder):
             )
 
         elif options.purpose == FilePurpose.check:
-            product = self.create_check(angle, mirror)
+            product = self.create_check(entry.type.value, angle, mirror)
         
         if product is None:
             logging.info("Nothing to do.")
@@ -125,7 +125,7 @@ class ImageTranscoder(Transcoder):
         reference = calculate_hash(cut_target)
 
         main_root = resolve_path(self.system.main_storage.root_path)
-        parts = [main_root, store, purpose.value, taken_ts, reference + '.jpg']
+        parts = [main_root, store, purpose.value, reference[:2], reference[2:] + '.jpg']
         main_path = os.path.join(*parts)
         FileCopy(
             source=cut_target,
@@ -141,7 +141,7 @@ class ImageTranscoder(Transcoder):
         )
         return f
 
-    def create_check(self, angle, mirror):
+    def create_check(self, store, angle, mirror):
         cut_target = self.full_original_file_path + '_check'
         _create_check(
             self.full_original_file_path,
@@ -150,9 +150,10 @@ class ImageTranscoder(Transcoder):
             mirror=mirror,
             size=self.system.config.get_job_settings('import').check_size,
         )
+        reference = calculate_hash(cut_target)
 
         main_root = resolve_path(self.system.main_storage.root_path)
-        parts = [main_root, store, 'check', taken_ts, reference + '.jpg']
+        parts = [main_root, store, 'check', reference[:2], reference[2:] + '.jpg']
         main_path = os.path.join(*parts)
         FileCopy(
             source=cut_target,
@@ -169,7 +170,8 @@ class ImageTranscoder(Transcoder):
         return f
 
 
-register_transcoder('image/jpg', 'proxy', ImageTranscoder)
+register_transcoder('image/jpeg', 'proxy', ImageTranscoder)
+register_transcoder('image/tiff', 'proxy', ImageTranscoder)
 register_transcoder('image/png', 'proxy', ImageTranscoder)
 register_transcoder('image/bmp', 'proxy', ImageTranscoder)
 register_transcoder('image/gif', 'proxy', ImageTranscoder)
