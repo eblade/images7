@@ -5,3 +5,5 @@ __pycache__
 *.sw?
 .vscode/tags
 .vscode/.ropeproject
+images.ini.backup
+images.ini
