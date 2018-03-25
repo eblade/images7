@@ -49,7 +49,7 @@ class ToMain(JobHandler):
         else:
             cut = job.get_step('to_cut')
             source_path = cut.result.path
-        
+
         assert source_path, "Missing source path (forgot to_cut step?)"
 
         if step.options.reference is not None:
@@ -65,7 +65,7 @@ class ToMain(JobHandler):
             metadata = metadata_step.result.metadata
         else:
             metadata = entry.metadata
-        
+
         if metadata is not None and hasattr(metadata, 'taken_ts') and metadata.taken_ts is not None:
             taken_ts = metadata.taken_ts[:10]
         else:

@@ -2,6 +2,7 @@
 
 import sys
 import os
+import logging
 from urllib.parse import urlparse, parse_qsl, urlunparse
 from jsonobject import (
     PropertySet,
@@ -110,13 +111,16 @@ class StorageConfig(PropertySet):
     def FromUrl(cls, query):
         inst = cls()
         inst.server = query.netloc
-        inst.root_path = get_path(query.path)
+        inst.root_path = resolve_path(get_path(query.path))
         for key, value in parse_qsl(query.query):
             setattr(inst, key, value)
         return inst
 
     def get_file_url(self, absolute_path):
-        return urlunparse(('local', self.server, os.path.relpath(absolute_path, self.root_path), None, None, None))
+        logging.info('RELPATH %s %s', absolute_path, os.path.abspath(self.root_path))
+        return urlunparse(('local', self.server,
+            os.path.relpath(absolute_path, os.path.abspath(self.root_path)),
+            None, None, None))
 
 
 class ImportMode(EnumProperty):

@@ -65,6 +65,17 @@ class File(PropertySet):
 #####
 
 
+def get_file_by_reference(reference):
+    result = next(current_system() \
+        .select('file') \
+        .view('by_reference', include_docs=True, key=reference), None)
+
+    if result is None:
+        return None
+
+    return File.FromDict(result['doc'])
+
+
 def get_file_by_url(url):
     return File.FromDict(
         current_system()

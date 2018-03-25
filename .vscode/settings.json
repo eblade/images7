@@ -1,5 +1,5 @@
 {
-    "python.pythonPath": "/home/johan/anaconda3/envs/images/bin/python",
+    "python.pythonPath": "/usr/bin/python3",
     "python.linting.pylintPath": "/home/johan/anaconda3/envs/images/bin/pylint",
     "python.autoComplete.extraPaths": [
         "${workspaceFolder}",

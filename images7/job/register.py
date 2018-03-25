@@ -87,7 +87,7 @@ class Register(JobHandler):
                 derivative = f
 
         primary = raw or original or derivative
-        
+
         if primary is None:
             logging.error('No valid file!\n%s', self.step.to_json())
             return

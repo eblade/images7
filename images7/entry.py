@@ -168,9 +168,13 @@ class Entry(PropertySet):
                 self.raw_url = url
             elif reference.purpose is FilePurpose.derivative:
                 self.derivative_url = url
-    
+
     def get_file_reference(self, reference):
         return next(filter(lambda x: x.reference == reference, self.files), None)
+
+    def get_file_by_purpose(self, purpose):
+        return next(filter(lambda x: x.purpose == purpose,
+            reversed(sorted(self.files, key=lambda x: x.version))), None)
 
 
 class DefaultEntryMetadata(PropertySet):

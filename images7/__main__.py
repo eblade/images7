@@ -3,6 +3,14 @@ import sys
 import logging
 import argparse
 
+# Logging
+FORMAT = '%(asctime)s [%(threadName)s] %(filename)s +%(levelno)s ' + \
+            '%(funcName)s %(levelname)s %(message)s'
+logging.basicConfig(
+    format=FORMAT,
+    level=logging.DEBUG if '-g' in sys.argv else logging.INFO,
+)
+
 
 if __name__ == '__main__':
     # Options
@@ -22,14 +30,6 @@ if __name__ == '__main__':
         help='command to run')
 
     args = parser.parse_args()
-
-    # Logging
-    FORMAT = '%(asctime)s [%(threadName)s] %(filename)s +%(levelno)s ' + \
-             '%(funcName)s %(levelname)s %(message)s'
-    logging.basicConfig(
-        format=FORMAT,
-        level=logging.DEBUG if args.debug else logging.INFO,
-    )
 
     # Load modules
     from .config import Config

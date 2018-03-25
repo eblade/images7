@@ -142,9 +142,10 @@ class Scanner(QueueClient):
         for file_path in scanner.scan():
             if not '.' in file_path:
                 continue
-            
+
             url = source.get_path_url(file_path)
             if system.select('file').has(url):
+                logging.info('Has %s already', url)
                 continue
 
             stem, _ = os.path.splitext(file_path)
@@ -153,7 +154,9 @@ class Scanner(QueueClient):
             else:
                 collected[stem] = [file_path]
 
-            #if len(collected) > 10: break
+            if len(collected) >= 100: break
+
+        logging.info('Collected %d files.', len(collected))
 
         # Create entries and import jobs for each found file
         for _, file_paths in sorted(collected.items(), key=lambda x: x[0]):
